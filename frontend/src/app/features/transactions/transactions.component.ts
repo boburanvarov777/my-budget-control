@@ -7,7 +7,9 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { FabComponent } from '../../shared/components/fab/fab.component';
 import { ApiService } from '../../core/services/api.service';
 import { ConfirmService } from '../../shared/services/confirm.service';
+import { ToastService } from '../../shared/services/toast.service';
 import { coerceAmount, currentMonthYear } from '../../shared/utils/format.util';
+import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 
@@ -226,6 +228,7 @@ interface CategoryItem {
 export class TransactionsComponent implements OnInit {
   private api = inject(ApiService);
   private confirm = inject(ConfirmService);
+  private toast = inject(ToastService);
 
   tab = signal<Tab>('expense');
   showForm = signal(false);
@@ -292,7 +295,10 @@ export class TransactionsComponent implements OnInit {
     }
 
     this.errors.set(errs);
-    if (Object.keys(errs).length) return;
+    if (Object.keys(errs).length) {
+      this.toast.error(Object.values(errs)[0]);
+      return;
+    }
 
     this.saving.set(true);
     this.submitError.set('');
@@ -314,10 +320,17 @@ export class TransactionsComponent implements OnInit {
         this.saving.set(false);
         this.closeForm();
         this.tab() === 'income' ? this.loadIncomes() : this.loadExpenses();
+        this.toast.success(
+          this.tab() === 'income'
+            ? "Daromad muvaffaqiyatli qo'shildi"
+            : "Xarajat muvaffaqiyatli qo'shildi",
+        );
       },
       error: (e: HttpErrorResponse) => {
         this.saving.set(false);
-        this.submitError.set(this.extractError(e));
+        const msg = extractApiError(e);
+        this.submitError.set(msg);
+        this.toast.error(msg);
       },
     });
   }
@@ -372,7 +385,13 @@ export class TransactionsComponent implements OnInit {
       `${this.formatItemLabel(item)} daromadini rostdan ham o'chirmoqchimisiz?`,
     );
     if (!ok) return;
-    this.api.delete(`/incomes/${item.id}`).subscribe(() => this.loadIncomes());
+    this.api.delete(`/incomes/${item.id}`).subscribe({
+      next: () => {
+        this.loadIncomes();
+        this.toast.success("Daromad muvaffaqiyatli o'chirildi");
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+    });
   }
 
   async removeExpense(item: ExpenseItem): Promise<void> {
@@ -381,7 +400,13 @@ export class TransactionsComponent implements OnInit {
       `${this.formatItemLabel(item)} xarajatini rostdan ham o'chirmoqchimisiz?`,
     );
     if (!ok) return;
-    this.api.delete(`/expenses/${item.id}`).subscribe(() => this.loadExpenses());
+    this.api.delete(`/expenses/${item.id}`).subscribe({
+      next: () => {
+        this.loadExpenses();
+        this.toast.success("Xarajat muvaffaqiyatli o'chirildi");
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+    });
   }
 
   categoryLabel(code: string): string {
@@ -417,13 +442,6 @@ export class TransactionsComponent implements OnInit {
   private formatItemLabel(item: IncomeItem | ExpenseItem): string {
     const amount = coerceAmount(item.amount);
     return `${this.categoryLabel(item.category)} · ${amount.toLocaleString('uz-UZ')} so'm`;
-  }
-
-  private extractError(e: HttpErrorResponse): string {
-    const msg = e.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    if (typeof msg === 'string') return msg;
-    return 'Xatolik yuz berdi. Qayta urinib ko\'ring.';
   }
 
   private fallbackIncomeCategories(): CategoryItem[] {

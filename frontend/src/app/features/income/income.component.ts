@@ -2,7 +2,9 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
+import { ToastService } from '../../shared/services/toast.service';
 import { currentMonthYear } from '../../shared/utils/format.util';
+import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 
@@ -94,6 +96,7 @@ interface Income {
 })
 export class IncomeComponent implements OnInit {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
   items = signal<Income[]>([]);
 
   categories = [
@@ -121,7 +124,10 @@ export class IncomeComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.form.amount) return;
+    if (!this.form.amount) {
+      this.toast.error('Summani kiriting');
+      return;
+    }
     this.api
       .post('/incomes', {
         amount: this.form.amount,
@@ -129,14 +135,24 @@ export class IncomeComponent implements OnInit {
         category: this.form.category,
         note: this.form.note || undefined,
       })
-      .subscribe(() => {
-        this.form.amount = null;
-        this.form.note = '';
-        this.load();
+      .subscribe({
+        next: () => {
+          this.form.amount = null;
+          this.form.note = '';
+          this.load();
+          this.toast.success("Daromad muvaffaqiyatli qo'shildi");
+        },
+        error: (e) => this.toast.error(extractApiError(e)),
       });
   }
 
   remove(id: string): void {
-    this.api.delete(`/incomes/${id}`).subscribe(() => this.load());
+    this.api.delete(`/incomes/${id}`).subscribe({
+      next: () => {
+        this.load();
+        this.toast.success("Daromad muvaffaqiyatli o'chirildi");
+      },
+      error: (e) => this.toast.error(extractApiError(e)),
+    });
   }
 }

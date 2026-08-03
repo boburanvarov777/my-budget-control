@@ -5,6 +5,8 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
 import { ConfirmService } from '../../shared/services/confirm.service';
+import { ToastService } from '../../shared/services/toast.service';
+import { extractApiError } from '../../shared/utils/http-error.util';
 
 type CategoryTab = 'income' | 'expense';
 
@@ -65,9 +67,6 @@ interface CategoryItem {
             Qo'shish
           </button>
         </div>
-        @if (error()) {
-          <p class="field-error">{{ error() }}</p>
-        }
       </div>
 
       <div class="space-y-2">
@@ -111,13 +110,13 @@ interface CategoryItem {
 export class CategoriesComponent implements OnInit {
   private api = inject(ApiService);
   private confirm = inject(ConfirmService);
+  private toast = inject(ToastService);
 
   tab = signal<CategoryTab>('expense');
   incomeCategories = signal<CategoryItem[]>([]);
   expenseCategories = signal<CategoryItem[]>([]);
   newLabel = '';
   adding = signal(false);
-  error = signal('');
 
   activeList = () =>
     this.tab() === 'income' ? this.incomeCategories() : this.expenseCategories();
@@ -142,7 +141,7 @@ export class CategoriesComponent implements OnInit {
   addCategory(): void {
     const label = this.newLabel.trim();
     if (!label) {
-      this.error.set('Kategoriya nomini kiriting');
+      this.toast.error('Kategoriya nomini kiriting');
       return;
     }
 
@@ -150,12 +149,11 @@ export class CategoriesComponent implements OnInit {
       (c) => c.label.trim().toLowerCase() === label.toLowerCase(),
     );
     if (exists) {
-      this.error.set('Bu nomdagi kategoriya allaqachon mavjud');
+      this.toast.error('Bu nomdagi kategoriya allaqachon mavjud');
       return;
     }
 
     this.adding.set(true);
-    this.error.set('');
 
     this.api
       .post('/categories', {
@@ -167,10 +165,11 @@ export class CategoriesComponent implements OnInit {
           this.newLabel = '';
           this.adding.set(false);
           this.loadAll();
+          this.toast.success("Kategoriya muvaffaqiyatli qo'shildi");
         },
         error: (e: HttpErrorResponse) => {
           this.adding.set(false);
-          this.error.set(this.extractError(e));
+          this.toast.error(extractApiError(e));
         },
       });
   }
@@ -183,15 +182,11 @@ export class CategoriesComponent implements OnInit {
     if (!ok) return;
 
     this.api.delete(`/categories/${id}`).subscribe({
-      next: () => this.loadAll(),
-      error: (e: HttpErrorResponse) => this.error.set(this.extractError(e)),
+      next: () => {
+        this.loadAll();
+        this.toast.success("Kategoriya muvaffaqiyatli o'chirildi");
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
     });
-  }
-
-  private extractError(e: HttpErrorResponse): string {
-    const msg = e.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    if (typeof msg === 'string') return msg;
-    return 'Xatolik yuz berdi';
   }
 }

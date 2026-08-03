@@ -35,6 +35,8 @@ import {
   Maximize2,
   Minimize2,
   Tags,
+  CircleCheck,
+  CircleAlert,
   LucideIconData,
 } from 'lucide-angular';
 
@@ -74,6 +76,8 @@ const ICONS: Record<string, LucideIconData> = {
   'maximize-2': Maximize2,
   'minimize-2': Minimize2,
   tags: Tags,
+  'circle-check': CircleCheck,
+  'circle-alert': CircleAlert,
 };
 
 @Component({
