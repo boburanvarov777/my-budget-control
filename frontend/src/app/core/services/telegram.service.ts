@@ -58,6 +58,12 @@ export class TelegramService {
     }
   }
 
+  closeApp(): void {
+    const tg = this.webApp;
+    if (!tg) return;
+    tg.close();
+  }
+
   getInitData(): string {
     return this.webApp?.initData ?? '';
   }

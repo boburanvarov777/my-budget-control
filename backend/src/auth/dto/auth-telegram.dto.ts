@@ -1,5 +1,11 @@
 import { IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 
+export class BeginRegistrationDto {
+  @IsString()
+  @IsNotEmpty()
+  initData!: string;
+}
+
 export class RequestCodeDto {
   @IsString()
   @IsNotEmpty()
@@ -20,8 +26,8 @@ export class VerifyCodeDto {
   initData!: string;
 
   @IsString()
-  @IsNotEmpty()
-  phone!: string;
+  @IsOptional()
+  phone?: string;
 
   @IsString()
   @Length(6, 6)

@@ -1,12 +1,22 @@
 import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TelegramService } from '../telegram/telegram.service';
+import { AuthService } from '../auth/auth.service';
 
 interface TelegramUpdate {
   message?: {
     chat: { id: number };
     text?: string;
-    from?: { first_name?: string; username?: string };
+    contact?: {
+      phone_number: string;
+      user_id?: number;
+      first_name?: string;
+    };
+    from?: {
+      id: number;
+      first_name?: string;
+      username?: string;
+    };
   };
 }
 
@@ -17,23 +27,39 @@ export class TelegramBotController {
   constructor(
     private telegram: TelegramService,
     private config: ConfigService,
+    private auth: AuthService,
   ) {}
 
   @Post('webhook')
   @HttpCode(200)
   async webhook(@Body() update: TelegramUpdate) {
     const message = update.message;
-    if (!message?.text || !message.chat?.id) {
+    if (!message?.chat?.id) {
       return { ok: true };
     }
 
-    const text = message.text.trim();
     const chatId = message.chat.id;
     const baseUrl =
       this.config.get<string>('WEBAPP_URL') ??
       this.config.get<string>('FRONTEND_URL') ??
       'https://budget-app-production-c406.up.railway.app';
     const appUrl = `${baseUrl.replace(/\/$/, '')}/auth`;
+
+    if (message.contact?.phone_number) {
+      this.logger.log(`Contact received from chat ${chatId}`);
+      await this.auth.handleBotContact(
+        chatId,
+        message.from?.username,
+        message.contact.phone_number,
+        message.from?.first_name,
+      );
+      return { ok: true };
+    }
+
+    const text = message.text?.trim();
+    if (!text) {
+      return { ok: true };
+    }
 
     if (text === '/start' || text.startsWith('/start ')) {
       this.logger.log(`/start from chat ${chatId}`);

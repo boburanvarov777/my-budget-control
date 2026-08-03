@@ -1,11 +1,12 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module, OnModuleInit, forwardRef } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { TelegramService } from './telegram.service';
 import { TelegramBotController } from './telegram-bot.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [ScheduleModule.forRoot(), forwardRef(() => AuthModule)],
   controllers: [TelegramBotController],
   providers: [TelegramService],
   exports: [TelegramService],

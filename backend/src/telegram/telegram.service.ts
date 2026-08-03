@@ -72,6 +72,49 @@ export class TelegramService {
     }
   }
 
+  async sendContactRequest(chatId: string | number, text: string) {
+    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!token) return;
+
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          reply_markup: {
+            keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; description?: string };
+      if (!data.ok) {
+        this.logger.error(`Contact keyboard error: ${data.description}`);
+      }
+    } catch (err) {
+      this.logger.error('Failed to send contact keyboard', err);
+    }
+  }
+
+  async removeKeyboard(chatId: string | number) {
+    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!token) return;
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: ' ',
+        reply_markup: { remove_keyboard: true },
+      }),
+    }).catch(() => undefined);
+  }
+
   async setupBot(appUrl: string) {
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
     if (!token) return;

@@ -1,11 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
 import { TelegramService } from '../../core/services/telegram.service';
 
-type AuthPhase = 'welcome' | 'phone' | 'code';
+type AuthPhase = 'welcome' | 'code';
 
 @Component({
   selector: 'app-auth',
@@ -20,54 +20,37 @@ type AuthPhase = 'welcome' | 'phone' | 'code';
             <h2 class="modal-title">Iltimos, ro'yxatdan o'ting</h2>
             <p class="modal-text">
               Bu ilova shaxsiy moliyaviy ma'lumotlaringizni himoya qiladi.
-              Davom etish uchun ro'yxatdan o'ting.
+              Davom etish uchun ro'yxatdan o'ting — botga qaytasiz va raqamingizni yuborasiz.
             </p>
-            <button type="button" class="btn-primary w-full" (click)="startRegistration()">
-              Ro'yxatdan o'tish
+            <button
+              type="button"
+              class="btn-primary w-full"
+              [disabled]="loading()"
+              (click)="startRegistration()"
+            >
+              {{ loading() ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish" }}
             </button>
           </div>
         </div>
       }
 
-      <div class="flex min-h-screen items-center justify-center px-4" [class.hidden]="phase() === 'welcome'">
-        <div class="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-2xl">
-          <div class="mb-6 text-center">
-            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-2xl">
-              🔐
-            </div>
-            <h1 class="text-xl font-semibold">Ro'yxatdan o'tish</h1>
-            <p class="mt-2 text-sm text-muted">
-              @if (phase() === 'phone') {
-                O'z raqamingizni yuboring. Boshqa raqam nusxasi yoki qo'lda yozish ishlamaydi.
-              } @else {
+      @if (phase() === 'code') {
+        <div class="flex min-h-screen items-center justify-center px-4">
+          <div class="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-2xl">
+            <div class="mb-6 text-center">
+              <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-2xl">
+                🔐
+              </div>
+              <h1 class="text-xl font-semibold">Tasdiqlash kodi</h1>
+              <p class="mt-2 text-sm text-muted">
                 @VerificationCodes kanalidan kodni oling va kiriting.
-              }
-            </p>
-          </div>
+              </p>
+            </div>
 
-          @if (error()) {
-            <div class="error-box mb-4 rounded-xl px-4 py-3 text-sm">{{ error() }}</div>
-          }
+            @if (error()) {
+              <div class="error-box mb-4 rounded-xl px-4 py-3 text-sm">{{ error() }}</div>
+            }
 
-          @if (info()) {
-            <div class="info-box mb-4 rounded-xl px-4 py-3 text-sm">{{ info() }}</div>
-          }
-
-          @if (phase() === 'phone') {
-            <button
-              type="button"
-              class="btn-primary w-full"
-              [disabled]="loading()"
-              (click)="sendPhone()"
-            >
-              {{ loading() ? 'Tekshirilmoqda...' : '📱 Raqamni yuborish' }}
-            </button>
-            <p class="mt-4 text-center text-xs text-muted">
-              Telegram "Raqamni ulashish" oynasida faqat o'z raqamingizni tanlang
-            </p>
-          }
-
-          @if (phase() === 'code') {
             <form class="space-y-3" (ngSubmit)="verify()">
               <input
                 class="field"
@@ -82,13 +65,10 @@ type AuthPhase = 'welcome' | 'phone' | 'code';
               <button type="submit" class="btn-primary w-full" [disabled]="loading()">
                 {{ loading() ? 'Tekshirilmoqda...' : 'Tasdiqlash' }}
               </button>
-              <button type="button" class="btn-link w-full" (click)="resetPhone()">
-                Qaytadan raqam yuborish
-              </button>
             </form>
-          }
+          </div>
         </div>
-      </div>
+      }
     </div>
   `,
   styles: [
@@ -98,7 +78,6 @@ type AuthPhase = 'welcome' | 'phone' | 'code';
       .border-border { border-color: var(--color-border); }
       .bg-accent-soft { background: var(--color-accent-soft); }
       .text-muted { color: var(--color-muted); }
-      .hidden { visibility: hidden; pointer-events: none; }
       .modal-overlay {
         position: fixed; inset: 0; z-index: 50;
         display: flex; align-items: center; justify-content: center;
@@ -119,11 +98,6 @@ type AuthPhase = 'welcome' | 'phone' | 'code';
         background: color-mix(in srgb, var(--color-danger) 10%, transparent);
         color: var(--color-danger);
       }
-      .info-box {
-        border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
-        background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-        color: var(--color-accent);
-      }
       .field {
         width: 100%; border-radius: 12px; border: 1px solid var(--color-border);
         background: var(--color-bg); color: var(--color-text);
@@ -134,54 +108,42 @@ type AuthPhase = 'welcome' | 'phone' | 'code';
         padding: 0.875rem; border: none; font-weight: 500; cursor: pointer;
       }
       .btn-primary:disabled { opacity: 0.5; }
-      .btn-link {
-        background: none; border: none; color: var(--color-muted);
-        font-size: 0.875rem; padding: 0.5rem; cursor: pointer;
-      }
     `,
   ],
 })
-export class AuthComponent {
+export class AuthComponent implements OnInit {
   private auth = inject(AuthService);
   private telegram = inject(TelegramService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   phase = signal<AuthPhase>('welcome');
   loading = signal(false);
   error = signal<string | null>(null);
-  info = signal<string | null>(null);
   code = '';
-  private phone = '';
   private initData = '';
 
-  startRegistration(): void {
-    this.telegram.expandApp();
-    this.phase.set('phone');
-    this.error.set(null);
+  ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      if (params['step'] === 'code') {
+        this.phase.set('code');
+        this.initData = this.telegram.getInitData();
+      }
+    });
   }
 
-  async sendPhone(): Promise<void> {
+  async startRegistration(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
-    this.info.set(null);
 
     try {
       this.initData = this.telegram.getInitData();
       if (!this.initData) throw new Error('Telegram Mini App ichida oching');
 
-      this.phone = await this.telegram.requestPhone();
-
-      const res = await this.auth.requestCode(
-        this.initData,
-        this.phone,
-        this.telegram.getUsername(),
-      );
-
-      this.info.set(res.message);
-      this.phase.set('code');
+      await this.auth.beginRegistration(this.initData);
+      this.telegram.closeApp();
     } catch (e: unknown) {
       this.error.set(this.extractError(e));
-    } finally {
       this.loading.set(false);
     }
   }
@@ -196,9 +158,11 @@ export class AuthComponent {
     this.error.set(null);
 
     try {
+      if (!this.initData) {
+        this.initData = this.telegram.getInitData();
+      }
       await this.auth.verifyCode(
         this.initData,
-        this.phone,
         this.code,
         this.telegram.getUsername(),
       );
@@ -208,13 +172,6 @@ export class AuthComponent {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  resetPhone(): void {
-    this.phase.set('phone');
-    this.code = '';
-    this.error.set(null);
-    this.info.set(null);
   }
 
   private extractError(e: unknown): string {

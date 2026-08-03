@@ -48,11 +48,17 @@ export class AuthService {
     );
   }
 
+  async beginRegistration(initData: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post(`${environment.apiUrl}/auth/begin-registration`, { initData }),
+    );
+  }
+
   async verifyCode(
     initData: string,
-    phone: string,
     code: string,
     username?: string,
+    phone?: string,
   ): Promise<void> {
     const res = await firstValueFrom(
       this.http.post<AuthResponse>(`${environment.apiUrl}/auth/verify-code`, {

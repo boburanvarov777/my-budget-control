@@ -7,7 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { RequestCodeDto, VerifyCodeDto } from './dto/auth-telegram.dto';
+import { RequestCodeDto, VerifyCodeDto, BeginRegistrationDto } from './dto/auth-telegram.dto';
 import {
   validateTelegramInitData,
   phonesMatch,
@@ -37,28 +37,112 @@ export class AuthService {
     return { botToken, allowedPhone, allowedUsername };
   }
 
-  private validateTelegramUser(dto: RequestCodeDto | VerifyCodeDto) {
-    const { botToken, allowedPhone, allowedUsername } = this.getConfig();
-
-    const tgUser = validateTelegramInitData(dto.initData, botToken);
+  private validateSession(initData: string, username?: string) {
+    const { botToken, allowedUsername } = this.getConfig();
+    const tgUser = validateTelegramInitData(initData, botToken);
     if (!tgUser) {
       throw new UnauthorizedException('Telegram sessiyasi yaroqsiz');
     }
-
-    const username = dto.username ?? tgUser.username;
-    if (!usernamesMatch(username, allowedUsername)) {
+    const resolvedUsername = username ?? tgUser.username;
+    if (!usernamesMatch(resolvedUsername, allowedUsername)) {
       throw new ForbiddenException(
         'Ruxsat berilmagan. Bu ilova faqat egasi uchun.',
       );
     }
+    return { tgUser, username: resolvedUsername };
+  }
 
-    if (!phonesMatch(dto.phone, allowedPhone)) {
+  private validateTelegramUser(dto: RequestCodeDto | VerifyCodeDto) {
+    const { tgUser, username } = this.validateSession(dto.initData, dto.username);
+    const { allowedPhone } = this.getConfig();
+
+    if (dto.phone && !phonesMatch(dto.phone, allowedPhone)) {
       throw new ForbiddenException(
-        "O'zingizning raqamingizni yuboring. Boshqa raqam yoki nusxa ko'chirish ishlamaydi — faqat Telegram orqali o'z raqamingizni ulashing.",
+        "O'zingizning raqamingizni yuboring. Boshqa raqam yoki nusxa ko'chirish ishlamaydi.",
       );
     }
 
     return { tgUser, username, allowedPhone };
+  }
+
+  async beginRegistration(dto: BeginRegistrationDto) {
+    const { tgUser } = this.validateSession(dto.initData);
+    const telegramId = tgUser.id;
+
+    await this.telegram.sendContactRequest(
+      telegramId,
+      "📱 Pastdagi tugmani bosing va o'z raqamingizni yuboring.\n\nBoshqa raqam nusxasi yoki qo'lda yozish ishlamaydi.",
+    );
+
+    return {
+      success: true,
+      message: "Botga qayting va raqamingizni yuboring.",
+    };
+  }
+
+  async handleBotContact(
+    telegramId: number,
+    username: string | undefined,
+    phone: string,
+    firstName?: string,
+  ) {
+    const { allowedPhone, allowedUsername } = this.getConfig();
+
+    if (!usernamesMatch(username, allowedUsername)) {
+      await this.telegram.sendMessage(
+        telegramId,
+        "❌ Ruxsat berilmagan. Bu bot faqat egasi uchun.",
+      );
+      return;
+    }
+
+    if (!phonesMatch(phone, allowedPhone)) {
+      await this.telegram.removeKeyboard(telegramId);
+      await this.telegram.sendContactRequest(
+        telegramId,
+        "❌ Noto'g'ri raqam.\n\nFaqat o'z Telegram raqamingizni yuboring — nusxa ko'chirish yoki qo'lda yozish ishlamaydi.",
+      );
+      return;
+    }
+
+    await this.telegram.removeKeyboard(telegramId);
+
+    const tgId = String(telegramId);
+    await this.prisma.verificationCode.updateMany({
+      where: { telegramId: tgId, used: false },
+      data: { used: true },
+    });
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await this.prisma.verificationCode.create({
+      data: { telegramId: tgId, phone, code, expiresAt },
+    });
+
+    const channel =
+      this.config.get<string>('VERIFICATION_CODES_CHANNEL') ?? '@VerificationCodes';
+    const message =
+      `🔐 Budget Control tasdiqlash kodi\n\n` +
+      `Kod: <b>${code}</b>\n` +
+      `Raqam: ${phone}\n` +
+      `Foydalanuvchi: @${username ?? 'unknown'}\n` +
+      `Amal qilish: 5 daqiqa`;
+
+    await this.telegram.sendMessage(channel, message);
+    await this.telegram.sendMessage(telegramId, message);
+
+    const baseUrl =
+      this.config.get<string>('WEBAPP_URL') ??
+      'https://budget-app-production-c406.up.railway.app';
+    const appUrl = `${baseUrl.replace(/\/$/, '')}/auth?step=code`;
+
+    await this.telegram.sendMessageWithWebApp(
+      telegramId,
+      `✅ Kod yuborildi!\n\n${channel} kanalidan kodni oling, keyin pastdagi tugma orqali kodni kiriting.`,
+      'Kodni kiritish',
+      appUrl,
+    );
   }
 
   async requestVerificationCode(dto: RequestCodeDto) {
@@ -107,10 +191,10 @@ export class AuthService {
     const record = await this.prisma.verificationCode.findFirst({
       where: {
         telegramId,
-        phone: dto.phone,
         code: dto.code,
         used: false,
         expiresAt: { gt: new Date() },
+        ...(dto.phone ? { phone: dto.phone } : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -120,6 +204,8 @@ export class AuthService {
         'Kod noto\'g\'ri yoki muddati tugagan. @VerificationCodes dan yangi kod oling.',
       );
     }
+
+    const phone = record.phone;
 
     await this.prisma.verificationCode.update({
       where: { id: record.id },
@@ -131,14 +217,14 @@ export class AuthService {
       create: {
         telegramId,
         username: username ?? null,
-        phone: dto.phone,
+        phone,
         firstName: tgUser.first_name ?? null,
         lastName: tgUser.last_name ?? null,
         role: UserRole.USER,
       },
       update: {
         username: username ?? null,
-        phone: dto.phone,
+        phone,
         firstName: tgUser.first_name ?? null,
         lastName: tgUser.last_name ?? null,
       },
