@@ -25,7 +25,9 @@ COPY --from=backend-build /app/backend/package.json ./backend/package.json
 COPY --from=backend-build /app/backend/prisma ./backend/prisma
 COPY --from=frontend-build /app/frontend/dist/frontend/browser /usr/share/nginx/html
 
-COPY nginx.conf /etc/nginx/http.d/default.conf
+COPY nginx.conf /etc/nginx/sites-available/default
+RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default \
+  && rm -f /etc/nginx/sites-enabled/default.bak 2>/dev/null; true
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
