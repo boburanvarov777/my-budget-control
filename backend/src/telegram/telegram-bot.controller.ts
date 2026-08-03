@@ -70,6 +70,17 @@ export class TelegramBotController {
         "Ro'yxatdan o'ting",
         appUrl,
       );
+      return { ok: true };
+    }
+
+    if (/^\d{6}$/.test(text)) {
+      this.logger.log(`Code input from chat ${chatId}`);
+      await this.auth.handleBotCodeInput(
+        chatId,
+        message.from?.username,
+        text,
+        message.from?.first_name,
+      );
     }
 
     return { ok: true };

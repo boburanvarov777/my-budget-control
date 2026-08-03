@@ -4,6 +4,7 @@ import {
   BeginRegistrationDto,
   RequestCodeDto,
   VerifyCodeDto,
+  MiniAppLoginDto,
 } from './dto/auth-telegram.dto';
 
 @Controller('auth')
@@ -18,6 +19,11 @@ export class AuthController {
   @Post('request-code')
   requestCode(@Body() dto: RequestCodeDto) {
     return this.authService.requestVerificationCode(dto);
+  }
+
+  @Post('mini-app-login')
+  miniAppLogin(@Body() dto: MiniAppLoginDto) {
+    return this.authService.miniAppLogin(dto.initData, dto.username);
   }
 
   @Post('verify-code')

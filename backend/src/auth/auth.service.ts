@@ -130,19 +130,115 @@ export class AuthService {
       `Amal qilish: 5 daqiqa`;
 
     await this.telegram.sendMessage(channel, message);
-    await this.telegram.sendMessage(telegramId, message);
+
+    await this.telegram.sendMessage(
+      telegramId,
+      `✅ Tasdiqlash kodi ${channel} kanaliga yuborildi.\n\n` +
+        `1. ${channel} kanalini oching\n` +
+        `2. Kodni nusxalang\n` +
+        `3. Shu chatga faqat 6 xonali kodni yozing`,
+    );
+  }
+
+  async handleBotCodeInput(
+    telegramId: number,
+    username: string | undefined,
+    code: string,
+    firstName?: string,
+  ) {
+    const { allowedUsername } = this.getConfig();
+
+    if (!usernamesMatch(username, allowedUsername)) {
+      await this.telegram.sendMessage(
+        telegramId,
+        '❌ Ruxsat berilmagan foydalanuvchi.',
+      );
+      return;
+    }
+
+    const tgId = String(telegramId);
+    const record = await this.prisma.verificationCode.findFirst({
+      where: {
+        telegramId: tgId,
+        code,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!record) {
+      await this.telegram.sendMessage(
+        telegramId,
+        "❌ Kod noto'g'ri yoki muddati tugagan.\n\n@VerificationCodes kanalidan yangi kod oling.",
+      );
+      return;
+    }
+
+    await this.prisma.verificationCode.update({
+      where: { id: record.id },
+      data: { used: true },
+    });
+
+    await this.prisma.user.upsert({
+      where: { telegramId: tgId },
+      create: {
+        telegramId: tgId,
+        username: username ?? null,
+        phone: record.phone,
+        firstName: firstName ?? null,
+        role: UserRole.USER,
+      },
+      update: {
+        username: username ?? null,
+        phone: record.phone,
+        firstName: firstName ?? null,
+      },
+    });
 
     const baseUrl =
       this.config.get<string>('WEBAPP_URL') ??
       'https://budget-app-production-c406.up.railway.app';
-    const appUrl = `${baseUrl.replace(/\/$/, '')}/auth?step=code`;
+    const appUrl = `${baseUrl.replace(/\/$/, '')}/dashboard`;
 
     await this.telegram.sendMessageWithWebApp(
       telegramId,
-      `✅ Kod yuborildi!\n\n${channel} kanalidan kodni oling, keyin pastdagi tugma orqali kodni kiriting.`,
-      'Kodni kiritish',
+      '✅ Ro\'yxatdan o\'tdingiz!\n\nEndi ilovani oching.',
+      'Ilovani oching',
       appUrl,
     );
+  }
+
+  async miniAppLogin(initData: string, username?: string) {
+    const { tgUser, username: resolvedUsername } = this.validateSession(
+      initData,
+      username,
+    );
+    const telegramId = String(tgUser.id);
+
+    const user = await this.prisma.user.findUnique({ where: { telegramId } });
+    if (!user) {
+      throw new UnauthorizedException(
+        "Avval bot orqali ro'yxatdan o'ting.",
+      );
+    }
+
+    const token = this.jwt.sign({
+      sub: user.id,
+      telegramId: user.telegramId,
+      role: user.role,
+    });
+
+    return {
+      accessToken: token,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        role: user.role,
+      },
+    };
   }
 
   async requestVerificationCode(dto: RequestCodeDto) {
@@ -175,11 +271,10 @@ export class AuthService {
       `Amal qilish: 5 daqiqa`;
 
     await this.telegram.sendMessage(channel, message);
-    await this.telegram.sendMessage(telegramId, message);
 
     return {
       success: true,
-      message: `Tasdiqlash kodi ${channel} kanaliga va Telegram xabaringizga yuborildi. Kodni shu yerdan oling.`,
+      message: `Tasdiqlash kodi ${channel} kanaliga yuborildi. Kodni u yerdan olib, bot chatiga yozing.`,
       expiresInSeconds: 300,
     };
   }

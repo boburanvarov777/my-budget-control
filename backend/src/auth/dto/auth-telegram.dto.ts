@@ -6,6 +6,16 @@ export class BeginRegistrationDto {
   initData!: string;
 }
 
+export class MiniAppLoginDto {
+  @IsString()
+  @IsNotEmpty()
+  initData!: string;
+
+  @IsString()
+  @IsOptional()
+  username?: string;
+}
+
 export class RequestCodeDto {
   @IsString()
   @IsNotEmpty()

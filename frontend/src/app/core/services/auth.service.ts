@@ -54,6 +54,17 @@ export class AuthService {
     );
   }
 
+  async miniAppLogin(initData: string, username?: string): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.post<AuthResponse>(`${environment.apiUrl}/auth/mini-app-login`, {
+        initData,
+        username,
+      }),
+    );
+    this.tokenValue = res.accessToken;
+    this.user.set(res.user);
+  }
+
   async verifyCode(
     initData: string,
     code: string,
