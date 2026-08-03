@@ -1,11 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { DecimalInterceptor } from './common/interceptors/decimal.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api');
+  app.useGlobalInterceptors(new DecimalInterceptor());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

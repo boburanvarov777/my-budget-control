@@ -124,7 +124,7 @@ export class DashboardComponent implements OnInit {
   formatAmount = formatAmount;
 
   quickLinks = [
-    { path: '/transactions', icon: 'trending-up', label: 'Tranzaksiya' },
+    { path: '/transactions', icon: 'trending-up', label: 'Kirim-chiqim' },
     { path: '/debts', icon: 'credit-card', label: 'Qarzlar' },
     { path: '/budget', icon: 'wallet', label: 'Byudjet' },
     { path: '/statistics', icon: 'trending-down', label: 'Statistika' },

@@ -43,10 +43,10 @@ import { IconComponent } from '../icon/icon.component';
 
       .bottom-nav-inner {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         max-width: 32rem;
         margin: 0 auto;
-        padding: 8px 8px 10px;
+        padding: 8px 4px 10px;
       }
 
       .nav-item {
@@ -54,11 +54,11 @@ import { IconComponent } from '../icon/icon.component';
         flex-direction: column;
         align-items: center;
         gap: 4px;
-        padding: 8px 4px;
+        padding: 8px 2px;
         border-radius: 12px;
         color: var(--color-muted-2);
         text-decoration: none;
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 500;
         letter-spacing: 0.01em;
         transition: color 250ms ease, background 250ms ease;
@@ -74,7 +74,8 @@ import { IconComponent } from '../icon/icon.component';
 export class BottomNavComponent {
   items = [
     { path: '/dashboard', icon: 'layout-dashboard', label: 'Dashboard', exact: true },
-    { path: '/transactions', icon: 'arrow-left-right', label: 'Tranzaksiya' },
+    { path: '/transactions', icon: 'arrow-left-right', label: 'Kirim-chiqim' },
+    { path: '/categories', icon: 'tags', label: 'Kategoriya' },
     { path: '/goals', icon: 'target', label: 'Maqsad' },
     { path: '/debts', icon: 'credit-card', label: 'Qarz' },
     { path: '/settings', icon: 'user', label: 'Profil' },

@@ -7,7 +7,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { FabComponent } from '../../shared/components/fab/fab.component';
 import { ApiService } from '../../core/services/api.service';
 import { ConfirmService } from '../../shared/services/confirm.service';
-import { currentMonthYear } from '../../shared/utils/format.util';
+import { coerceAmount, currentMonthYear } from '../../shared/utils/format.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 
@@ -52,8 +52,8 @@ interface CategoryItem {
   template: `
     <section class="premium-page">
       <app-page-header
-        title="Tranzaksiyalar"
-        subtitle="Daromad va xarajatlaringiz · PostgreSQL bazasida saqlanadi"
+        title="Kirim-chiqim"
+        subtitle="Daromad va xarajatlaringiz"
       />
 
       <div class="premium-segment">
@@ -91,12 +91,7 @@ interface CategoryItem {
           </div>
 
           <div class="premium-field">
-            <div class="label-row">
-              <label class="premium-label">Kategoriya</label>
-              <button type="button" class="link-btn" (click)="showCategoryManager.set(true)">
-                Boshqarish
-              </button>
-            </div>
+            <label class="premium-label">Kategoriya</label>
             <select
               class="premium-select"
               [class.premium-select-error]="!!errors()['category']"
@@ -154,53 +149,6 @@ interface CategoryItem {
         </form>
       }
 
-      @if (showCategoryManager()) {
-        <div class="modal-backdrop" (click)="showCategoryManager.set(false)">
-          <div class="modal-card" (click)="$event.stopPropagation()">
-            <h2 class="premium-section-title">Kategoriyalar</h2>
-            <p class="premium-small premium-muted">
-              {{ tab() === 'income' ? 'Daromad' : 'Xarajat' }} kategoriyalarini qo'shing yoki o'chiring
-            </p>
-
-            <div class="add-row">
-              <input
-                type="text"
-                class="premium-input"
-                placeholder="Yangi kategoriya nomi"
-                [(ngModel)]="newCategoryLabel"
-                name="newCategory"
-              />
-              <button type="button" class="premium-btn premium-btn-primary" (click)="addCategory()" [disabled]="addingCategory()">
-                Qo'shish
-              </button>
-            </div>
-
-            @if (categoryError()) {
-              <p class="field-error">{{ categoryError() }}</p>
-            }
-
-            <div class="category-list">
-              @for (c of activeCategories(); track c.code) {
-                <div class="category-row">
-                  <span>{{ categoryOptionLabel(c) }}</span>
-                  @if (c.custom && c.id) {
-                    <button type="button" class="icon-btn" (click)="removeCategory(c.id, c.label)">
-                      <app-icon name="trash-2" [size]="16" />
-                    </button>
-                  } @else {
-                    <span class="premium-small premium-muted">Tizim</span>
-                  }
-                </div>
-              }
-            </div>
-
-            <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="showCategoryManager.set(false)">
-              Yopish
-            </button>
-          </div>
-        </div>
-      }
-
       <div class="space-y-3">
         @if (tab() === 'income') {
           @for (item of incomes(); track item.id) {
@@ -210,7 +158,7 @@ interface CategoryItem {
                   <app-icon name="trending-up" [size]="18" />
                 </div>
                 <div>
-                  <p class="amount-lg text-success">{{ item.amount | amount }} so'm</p>
+                  <p class="amount-lg text-success">{{ amountLabel(item.amount) }} so'm</p>
                   <p class="premium-small premium-muted">
                     {{ categoryLabel(item.category) }} · {{ item.date | date: 'd MMM' }}
                   </p>
@@ -231,7 +179,7 @@ interface CategoryItem {
                   <app-icon [name]="expenseIcon(item.category)" [size]="18" />
                 </div>
                 <div>
-                  <p class="amount-lg text-danger">{{ item.amount | amount }} so'm</p>
+                  <p class="amount-lg text-danger">{{ amountLabel(item.amount) }} so'm</p>
                   <p class="premium-small premium-muted">
                     {{ categoryLabel(item.category) }} · {{ item.date | date: 'd MMM' }}
                   </p>
@@ -258,24 +206,6 @@ interface CategoryItem {
       .items-center { align-items: center; }
       .gap-3 { gap: 12px; }
 
-      .label-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 8px;
-      }
-
-      .label-row .premium-label { margin-bottom: 0; }
-
-      .link-btn {
-        border: none;
-        background: none;
-        color: var(--color-gold);
-        font-size: 14px;
-        cursor: pointer;
-        padding: 0;
-      }
-
       .icon-btn {
         display: flex;
         align-items: center;
@@ -290,55 +220,6 @@ interface CategoryItem {
       }
 
       .icon-btn:hover { color: var(--color-danger); }
-
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 90;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        padding: 16px;
-        background: rgba(0, 0, 0, 0.65);
-      }
-
-      .modal-card {
-        width: 100%;
-        max-width: 32rem;
-        max-height: 80dvh;
-        overflow: auto;
-        padding: 20px;
-        border-radius: var(--radius-card);
-        border: 1px solid var(--color-border);
-        background: var(--color-card);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .add-row {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 8px;
-      }
-
-      .category-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        max-height: 240px;
-        overflow: auto;
-      }
-
-      .category-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 12px;
-        border-radius: 12px;
-        border: 1px solid var(--color-border);
-        background: var(--color-bg);
-      }
     `,
   ],
 })
@@ -348,19 +229,14 @@ export class TransactionsComponent implements OnInit {
 
   tab = signal<Tab>('expense');
   showForm = signal(false);
-  showCategoryManager = signal(false);
   saving = signal(false);
-  addingCategory = signal(false);
   submitError = signal('');
-  categoryError = signal('');
   errors = signal<Record<string, string>>({});
 
   incomes = signal<IncomeItem[]>([]);
   expenses = signal<ExpenseItem[]>([]);
   incomeCategories = signal<CategoryItem[]>([]);
   expenseCategories = signal<CategoryItem[]>([]);
-
-  newCategoryLabel = '';
 
   activeCategories = computed(() =>
     this.tab() === 'income' ? this.incomeCategories() : this.expenseCategories(),
@@ -403,8 +279,9 @@ export class TransactionsComponent implements OnInit {
 
   submit(): void {
     const errs: Record<string, string> = {};
+    const amount = coerceAmount(this.form.amount);
 
-    if (this.form.amount == null || this.form.amount <= 0) {
+    if (amount <= 0) {
       errs['amount'] = 'Summani kiriting (masalan: 25 000)';
     }
     if (!this.form.category?.trim()) {
@@ -421,7 +298,7 @@ export class TransactionsComponent implements OnInit {
     this.submitError.set('');
 
     const payload = {
-      amount: Number(this.form.amount),
+      amount,
       category: this.form.category,
       date: this.form.date,
       note: this.form.note?.trim() || undefined,
@@ -463,12 +340,30 @@ export class TransactionsComponent implements OnInit {
 
   loadIncomes(): void {
     const { month, year } = currentMonthYear();
-    this.api.get<IncomeItem[]>('/incomes', { month, year }).subscribe((r) => this.incomes.set(r));
+    this.api.get<IncomeItem[]>('/incomes', { month, year }).subscribe((rows) =>
+      this.incomes.set(
+        rows.map((row) => ({
+          ...row,
+          amount: coerceAmount(row.amount),
+        })),
+      ),
+    );
   }
 
   loadExpenses(): void {
     const { month, year } = currentMonthYear();
-    this.api.get<ExpenseItem[]>('/expenses', { month, year }).subscribe((r) => this.expenses.set(r));
+    this.api.get<ExpenseItem[]>('/expenses', { month, year }).subscribe((rows) =>
+      this.expenses.set(
+        rows.map((row) => ({
+          ...row,
+          amount: coerceAmount(row.amount),
+        })),
+      ),
+    );
+  }
+
+  amountLabel(value: unknown): string {
+    return coerceAmount(value).toLocaleString('uz-UZ').replace(/\u00a0/g, ' ');
   }
 
   async removeIncome(item: IncomeItem): Promise<void> {
@@ -487,52 +382,6 @@ export class TransactionsComponent implements OnInit {
     );
     if (!ok) return;
     this.api.delete(`/expenses/${item.id}`).subscribe(() => this.loadExpenses());
-  }
-
-  addCategory(): void {
-    const label = this.newCategoryLabel.trim();
-    if (!label) {
-      this.categoryError.set('Kategoriya nomini kiriting');
-      return;
-    }
-
-    this.addingCategory.set(true);
-    this.categoryError.set('');
-
-    this.api
-      .post('/categories', {
-        type: this.tab() === 'income' ? 'INCOME' : 'EXPENSE',
-        label,
-      })
-      .subscribe({
-        next: () => {
-          this.newCategoryLabel = '';
-          this.addingCategory.set(false);
-          this.loadCategories();
-        },
-        error: (e: HttpErrorResponse) => {
-          this.addingCategory.set(false);
-          this.categoryError.set(this.extractError(e));
-        },
-      });
-  }
-
-  async removeCategory(id: string, label: string): Promise<void> {
-    const ok = await this.confirm.ask(
-      "Kategoriyani o'chirish",
-      `"${label}" kategoriyasini rostdan ham o'chirmoqchimisiz?`,
-    );
-    if (!ok) return;
-
-    this.api.delete(`/categories/${id}`).subscribe({
-      next: () => {
-        if (this.form.category && !this.activeCategories().some((c) => c.code === this.form.category)) {
-          this.form.category = this.defaultCategory();
-        }
-        this.loadCategories();
-      },
-      error: (e: HttpErrorResponse) => this.categoryError.set(this.extractError(e)),
-    });
   }
 
   categoryLabel(code: string): string {
@@ -566,7 +415,8 @@ export class TransactionsComponent implements OnInit {
   }
 
   private formatItemLabel(item: IncomeItem | ExpenseItem): string {
-    return `${this.categoryLabel(item.category)} · ${item.amount.toLocaleString('uz-UZ')} so'm`;
+    const amount = coerceAmount(item.amount);
+    return `${this.categoryLabel(item.category)} · ${amount.toLocaleString('uz-UZ')} so'm`;
   }
 
   private extractError(e: HttpErrorResponse): string {

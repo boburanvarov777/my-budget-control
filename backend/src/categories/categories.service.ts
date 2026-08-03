@@ -64,12 +64,13 @@ export class CategoriesService {
   }
 
   async create(userId: string, dto: CreateCategoryDto) {
-    const label = dto.label.trim();
+    const label = dto.label.trim().replace(/\s+/g, ' ');
     if (!label) throw new BadRequestException('Kategoriya nomi bo\'sh bo\'lmasin');
 
     const existing = await this.findAllWithCustom(userId, dto.type);
-    if (existing.some((c) => c.label.toLowerCase() === label.toLowerCase())) {
-      throw new BadRequestException('Bu kategoriya allaqachon mavjud');
+    const normalized = label.toLowerCase();
+    if (existing.some((c) => c.label.trim().toLowerCase() === normalized)) {
+      throw new BadRequestException('Bu nomdagi kategoriya allaqachon mavjud');
     }
 
     const code = this.buildCode(label);

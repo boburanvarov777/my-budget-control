@@ -5,6 +5,18 @@ export function coerceAmount(value: unknown): number {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   }
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.toNumber === 'function') {
+      const n = (obj.toNumber as () => number)();
+      return Number.isFinite(n) ? n : 0;
+    }
+    if (Array.isArray(obj.d) && obj.d.length) {
+      const raw = obj.d.join('');
+      const n = Number(raw);
+      return Number.isFinite(n) ? n * (obj.s === -1 ? -1 : 1) : 0;
+    }
+  }
   const n = Number(String(value));
   return Number.isFinite(n) ? n : 0;
 }

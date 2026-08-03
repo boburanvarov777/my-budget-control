@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsNotEmpty,
@@ -8,7 +8,16 @@ import {
   Min,
 } from 'class-validator';
 
+function parseAmountValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const digits = value.replace(/\D/g, '');
+    return digits ? Number(digits) : value;
+  }
+  return value;
+}
+
 export class CreateExpenseDto {
+  @Transform(({ value }) => parseAmountValue(value))
   @Type(() => Number)
   @IsNumber()
   @Min(0.01)
@@ -27,6 +36,7 @@ export class CreateExpenseDto {
 }
 
 export class UpdateExpenseDto {
+  @Transform(({ value }) => parseAmountValue(value))
   @Type(() => Number)
   @IsNumber()
   @Min(0.01)

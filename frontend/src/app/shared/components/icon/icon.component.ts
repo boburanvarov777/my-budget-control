@@ -34,6 +34,7 @@ import {
   Calendar,
   Maximize2,
   Minimize2,
+  Tags,
   LucideIconData,
 } from 'lucide-angular';
 
@@ -72,6 +73,7 @@ const ICONS: Record<string, LucideIconData> = {
   calendar: Calendar,
   'maximize-2': Maximize2,
   'minimize-2': Minimize2,
+  tags: Tags,
 };
 
 @Component({

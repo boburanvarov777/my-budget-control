@@ -6,8 +6,14 @@ import { CreateIncomeDto, UpdateIncomeDto } from './dto/income.dto';
 
 function serializeIncome(row: Income) {
   return {
-    ...row,
+    id: row.id,
+    userId: row.userId,
     amount: toNumber(row.amount),
+    date: row.date,
+    note: row.note,
+    category: row.category,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
