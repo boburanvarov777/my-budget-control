@@ -11,7 +11,6 @@ import { ToastService } from '../../shared/services/toast.service';
 import { coerceAmount, currentMonthYear } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
-import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 type Tab = 'income' | 'expense';
 
@@ -49,7 +48,6 @@ interface CategoryItem {
     FabComponent,
     IconComponent,
     CurrencyInputComponent,
-    AmountPipe,
   ],
   template: `
     <section class="premium-page">

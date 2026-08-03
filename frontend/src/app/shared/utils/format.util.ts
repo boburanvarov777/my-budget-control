@@ -1,3 +1,13 @@
+interface DecimalLike {
+  toNumber?: () => number;
+  d?: Array<number | string>;
+  s?: number;
+}
+
+function asDecimalLike(value: object): DecimalLike {
+  return value as DecimalLike;
+}
+
 export function coerceAmount(value: unknown): number {
   if (value == null || value === '') return 0;
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -6,16 +16,15 @@ export function coerceAmount(value: unknown): number {
     return Number.isFinite(n) ? n : 0;
   }
   if (typeof value === 'object' && value !== null) {
-    const obj = value as Record<string, unknown>;
-    if (typeof obj['toNumber'] === 'function') {
-      const n = (obj['toNumber'] as () => number)();
+    const obj = asDecimalLike(value);
+    if (typeof obj.toNumber === 'function') {
+      const n = obj.toNumber();
       return Number.isFinite(n) ? n : 0;
     }
-    const digits = obj['d'];
-    if (Array.isArray(digits) && digits.length) {
-      const raw = digits.join('');
+    if (Array.isArray(obj.d) && obj.d.length) {
+      const raw = obj.d.map(String).join('');
       const n = Number(raw);
-      const sign = obj['s'] === -1 ? -1 : 1;
+      const sign = obj.s === -1 ? -1 : 1;
       return Number.isFinite(n) ? n * sign : 0;
     }
   }
