@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
 import { TelegramService } from '../telegram/telegram.service';
 import { AuthService } from '../auth/auth.service';
+import { looksLikePhone } from '../auth/telegram.util';
 
 interface TelegramUpdate {
   message?: {
@@ -44,6 +45,7 @@ export class TelegramBotController {
         chatId,
         message.from?.username,
         message.contact.phone_number,
+        message.contact.user_id,
         message.from?.first_name,
       );
       return { ok: true };
@@ -56,24 +58,17 @@ export class TelegramBotController {
 
     if (text === '/start' || text.startsWith('/start ')) {
       this.logger.log(`/start from chat ${chatId}`);
-      const name = message.from?.first_name ?? 'Bobur';
-      await this.telegram.sendMessage(
+      await this.auth.handleStart(
         chatId,
-        `Salom ${name} 👋\n\n` +
-          `Budget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\n` +
-          `Ro'yxatdan o'tish uchun pastdagi "Ilovani oching" tugmasini bosing.`,
+        message.from?.username,
+        message.from?.first_name,
       );
       return { ok: true };
     }
 
-    if (/^\d{6}$/.test(text)) {
-      this.logger.log(`Code input from chat ${chatId}`);
-      await this.auth.handleBotCodeInput(
-        chatId,
-        message.from?.username,
-        text,
-        message.from?.first_name,
-      );
+    if (looksLikePhone(text)) {
+      this.logger.log(`Manual phone attempt from chat ${chatId}`);
+      await this.auth.handleManualPhoneAttempt(chatId);
     }
 
     return { ok: true };

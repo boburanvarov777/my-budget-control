@@ -69,5 +69,13 @@ export function usernamesMatch(
   expected?: string | null,
 ): boolean {
   if (!expected) return false;
-  return (actual ?? '').toLowerCase() === expected.toLowerCase();
+  const normalizedExpected = expected.replace(/^@/, '').toLowerCase();
+  const normalizedActual = (actual ?? '').replace(/^@/, '').toLowerCase();
+  return normalizedActual === normalizedExpected;
+}
+
+export function looksLikePhone(text: string): boolean {
+  const digits = text.replace(/\D/g, '');
+  if (digits.length < 9) return false;
+  return /^\+?\d[\d\s\-()]{8,}$/.test(text.trim());
 }
