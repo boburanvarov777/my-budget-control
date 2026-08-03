@@ -2,7 +2,9 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
+import { currentMonthYear } from '../../shared/utils/format.util';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 interface Income {
   id: string;
@@ -15,20 +17,13 @@ interface Income {
 @Component({
   selector: 'app-income',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent, AmountPipe],
   template: `
     <section class="space-y-4">
       <h1 class="text-xl font-semibold">Daromad</h1>
 
       <form class="space-y-3 rounded-2xl border border-border bg-surface-2 p-4" (ngSubmit)="submit()">
-        <input
-          type="number"
-          class="field"
-          placeholder="Summa"
-          [(ngModel)]="form.amount"
-          name="amount"
-          required
-        />
+        <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="300 000" />
         <input type="date" class="field" [(ngModel)]="form.date" name="date" required />
         <select class="field" [(ngModel)]="form.category" name="category">
           @for (c of categories; track c.value) {
@@ -43,7 +38,7 @@ interface Income {
         @for (item of items(); track item.id) {
           <div class="item-row">
             <div>
-              <p class="font-medium text-success">{{ format(item.amount) }}</p>
+              <p class="font-medium text-success">{{ item.amount | amount }} so'm</p>
               <p class="text-xs text-muted">{{ item.category }} · {{ item.date | date: 'd MMM' }}</p>
             </div>
             <button type="button" class="text-danger text-sm" (click)="remove(item.id)">×</button>
@@ -100,7 +95,6 @@ interface Income {
 export class IncomeComponent implements OnInit {
   private api = inject(ApiService);
   items = signal<Income[]>([]);
-  format = formatMoney;
 
   categories = [
     { value: 'SALARY', label: 'Ish haqi' },

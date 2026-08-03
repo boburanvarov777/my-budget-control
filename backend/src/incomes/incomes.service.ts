@@ -29,7 +29,7 @@ export class IncomesService {
         userId,
         amount: dto.amount,
         date: new Date(dto.date),
-        category: dto.category,
+        category: dto.category ?? 'SALARY',
         note: dto.note,
       },
     });

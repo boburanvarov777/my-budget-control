@@ -203,6 +203,18 @@ button {
   color: var(--color-muted-2);
 }
 
+.premium-input-error,
+.premium-select-error {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 1px rgba(229, 57, 53, 0.35) !important;
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
 .premium-input:focus,
 .premium-select:focus,
 .premium-textarea:focus {

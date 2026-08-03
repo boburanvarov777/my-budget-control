@@ -52,6 +52,22 @@ export class TelegramService {
     tg.ready();
     tg.setHeaderColor('#090909');
     tg.setBackgroundColor('#090909');
+    this.expandToFullHeight();
+  }
+
+  /** Mini app ochilganda to'liq balandlikka kengaytirish (Telegram header qoladi) */
+  expandToFullHeight(): void {
+    const tg = this.webApp;
+    if (!tg) return;
+
+    const expand = () => {
+      if (!tg.isExpanded) tg.expand();
+    };
+
+    expand();
+    requestAnimationFrame(expand);
+    setTimeout(expand, 50);
+    setTimeout(expand, 300);
   }
 
   isFullscreen(): boolean {
@@ -61,7 +77,7 @@ export class TelegramService {
   enterFullscreen(): void {
     const tg = this.webApp;
     if (!tg) return;
-    tg.expand();
+    this.expandToFullHeight();
     tg.requestFullscreen?.();
     this.fullscreen.set(true);
   }

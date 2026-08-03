@@ -1,43 +1,99 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { IconComponent } from '../../shared/components/icon/icon.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { MoneyPipe, AmountPipe } from '../../shared/pipes/money.pipe';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
+import { currentMonthYear } from '../../shared/utils/format.util';
+
+interface CalendarEvent {
+  date: string;
+  title: string;
+  type: string;
+  amount: number;
+}
 
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, PageHeaderComponent, IconComponent, AmountPipe],
   template: `
-    <section class="space-y-4">
-      <h1 class="text-xl font-semibold">To'lov kalendari</h1>
+    <section class="premium-page calendar-page">
+      <app-page-header
+        title="To'lov kalendari"
+        subtitle="Bu oy rejalashtirilgan to'lovlar"
+      />
 
-      @for (event of events(); track $index) {
-        <div class="card flex justify-between items-center">
-          <div>
-            <p class="text-sm text-accent">{{ event.date | date: 'd MMMM' }}</p>
-            <p class="font-medium">{{ event.title }}</p>
-            <p class="text-xs text-muted capitalize">{{ event.type }}</p>
+      <div class="space-y-3">
+        @for (event of events(); track event.date + event.title + event.type) {
+          <div class="premium-list-item calendar-item">
+            <div class="calendar-main">
+              <div class="premium-list-icon active">
+                <app-icon name="calendar" [size]="18" />
+              </div>
+              <div class="calendar-text">
+                <p class="premium-caption text-gold">{{ event.date | date: 'd MMMM' }}</p>
+                <p class="premium-body">{{ event.title }}</p>
+                <p class="premium-small premium-muted capitalize">{{ event.type }}</p>
+              </div>
+            </div>
+            <p class="amount-lg">{{ event.amount | amount }} so'm</p>
           </div>
-          <p class="font-semibold">{{ format(event.amount) }}</p>
-        </div>
-      } @empty {
-        <p class="text-muted text-center">Bu oy to'lovlar yo'q</p>
-      }
+        } @empty {
+          <div class="premium-card premium-muted premium-small">Bu oy to'lovlar yo'q</div>
+        }
+      </div>
     </section>
   `,
-  styles: [`
-    .card { border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-surface-2); padding: 1rem; }
-    .text-muted { color: var(--color-muted); }
-    .text-accent { color: var(--color-accent); }
-  `],
+  styles: [
+    `
+      .calendar-page {
+        overflow-x: hidden;
+        min-width: 0;
+      }
+
+      .space-y-3 > * + * {
+        margin-top: 12px;
+      }
+
+      .calendar-item {
+        align-items: flex-start;
+        min-width: 0;
+      }
+
+      .calendar-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .calendar-text {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .calendar-text .premium-body,
+      .calendar-text .premium-caption {
+        overflow-wrap: anywhere;
+      }
+
+      .calendar-item .amount-lg {
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+    `,
+  ],
 })
 export class CalendarComponent implements OnInit {
   private api = inject(ApiService);
-  events = signal<any[]>([]);
-  format = formatMoney;
+  events = signal<CalendarEvent[]>([]);
 
   ngOnInit(): void {
     const { month, year } = currentMonthYear();
-    this.api.get<any[]>('/calendar', { month, year }).subscribe((r) => this.events.set(r));
+    this.api.get<CalendarEvent[]>('/calendar', { month, year }).subscribe((r) =>
+      this.events.set(r),
+    );
   }
 }

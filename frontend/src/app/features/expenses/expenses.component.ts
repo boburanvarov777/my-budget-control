@@ -2,7 +2,9 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
+import { currentMonthYear } from '../../shared/utils/format.util';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 interface Expense {
   id: string;
@@ -15,13 +17,13 @@ interface Expense {
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent, AmountPipe],
   template: `
     <section class="space-y-4">
       <h1 class="text-xl font-semibold">Xarajatlar</h1>
 
       <form class="space-y-3 rounded-2xl border border-border bg-surface-2 p-4" (ngSubmit)="submit()">
-        <input type="number" class="field" placeholder="Summa" [(ngModel)]="form.amount" name="amount" required />
+        <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="25 000" />
         <select class="field" [(ngModel)]="form.category" name="category">
           @for (c of categories; track c.value) {
             <option [value]="c.value">{{ c.icon }} {{ c.label }}</option>
@@ -36,7 +38,7 @@ interface Expense {
         @for (item of items(); track item.id) {
           <div class="item-row">
             <div>
-              <p class="font-medium text-danger">{{ format(item.amount) }}</p>
+              <p class="font-medium text-danger">{{ item.amount | amount }} so'm</p>
               <p class="text-xs text-muted">{{ label(item.category) }} · {{ item.date | date: 'd MMM' }}</p>
             </div>
             <button type="button" class="text-danger" (click)="remove(item.id)">×</button>
@@ -70,7 +72,6 @@ interface Expense {
 export class ExpensesComponent implements OnInit {
   private api = inject(ApiService);
   items = signal<Expense[]>([]);
-  format = formatMoney;
 
   categories = [
     { value: 'FOOD', icon: '🥩', label: 'Oziq-ovqat' },

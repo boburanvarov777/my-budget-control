@@ -12,26 +12,9 @@ enum UserRole {
   ADMIN
 }
 
-enum ExpenseCategory {
-  FOOD
-  TRANSPORT
-  UTILITIES
-  CHILD
-  CAFE
-  PHONE
-  GAMING
-  GIFT
-  SHOPPING
-  PHARMACY
-  OTHER
-}
-
-enum IncomeCategory {
-  SALARY
-  BONUS
-  FREELANCE
-  SALE
-  OTHER
+enum CategoryType {
+  INCOME
+  EXPENSE
 }
 
 enum CreditStatus {
@@ -79,6 +62,22 @@ model User {
   savings        Saving[]
   budgetPlans    BudgetPlan[]
   notifications  Notification[]
+  categories     TransactionCategory[]
+}
+
+model TransactionCategory {
+  id        String       @id @default(uuid())
+  userId    String
+  type      CategoryType
+  code      String
+  label     String
+  icon      String?
+  createdAt DateTime     @default(now())
+
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, code])
+  @@index([userId, type])
 }
 
 model Income {
@@ -87,7 +86,7 @@ model Income {
   amount      Decimal        @db.Decimal(18, 2)
   date        DateTime
   note        String?
-  category    IncomeCategory @default(SALARY)
+  category    String         @default("SALARY")
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -102,7 +101,7 @@ model Expense {
   amount      Decimal         @db.Decimal(18, 2)
   date        DateTime
   note        String?
-  category    ExpenseCategory @default(OTHER)
+  category    String          @default("OTHER")
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

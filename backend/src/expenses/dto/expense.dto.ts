@@ -1,23 +1,23 @@
 import {
   IsDateString,
-  IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Min,
 } from 'class-validator';
-import { ExpenseCategory } from '@prisma/client';
 
 export class CreateExpenseDto {
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   amount!: number;
 
   @IsDateString()
   date!: string;
 
-  @IsEnum(ExpenseCategory)
-  category!: ExpenseCategory;
+  @IsString()
+  @IsNotEmpty()
+  category!: string;
 
   @IsString()
   @IsOptional()
@@ -26,7 +26,7 @@ export class CreateExpenseDto {
 
 export class UpdateExpenseDto {
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   @IsOptional()
   amount?: number;
 
@@ -34,9 +34,9 @@ export class UpdateExpenseDto {
   @IsOptional()
   date?: string;
 
-  @IsEnum(ExpenseCategory)
+  @IsString()
   @IsOptional()
-  category?: ExpenseCategory;
+  category?: string;
 
   @IsString()
   @IsOptional()

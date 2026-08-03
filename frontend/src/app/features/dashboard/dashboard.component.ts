@@ -4,7 +4,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
 import { StatCardComponent } from '../../shared/components/stat-card/stat-card.component';
 import { ProgressBarComponent } from '../../shared/components/progress-bar/progress-bar.component';
-import { formatMoney } from '../../shared/utils/format.util';
+import { formatAmount } from '../../shared/utils/format.util';
+import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 interface DashboardData {
   greeting: string;
@@ -33,6 +34,7 @@ interface DashboardData {
     ProgressBarComponent,
     RouterLink,
     IconComponent,
+    AmountPipe,
   ],
   template: `
     <section class="premium-page">
@@ -48,7 +50,7 @@ interface DashboardData {
             <app-icon name="wallet" [size]="18" class="text-gold" />
             <span class="premium-caption">Qolgan balans</span>
           </div>
-          <p class="amount-xl text-gold">{{ format(d.month.remaining) }}</p>
+          <p class="amount-xl text-gold">{{ d.month.remaining | amount }} so'm</p>
         </div>
 
         <div class="premium-grid-2">
@@ -73,7 +75,7 @@ interface DashboardData {
                   </div>
                   <app-progress-bar
                     [progress]="goal.progress"
-                    [subtitle]="format(goal.savedAmount) + ' / ' + format(goal.targetAmount)"
+                    [subtitle]="goalAmountLabel(goal)"
                   />
                 </div>
               }
@@ -119,7 +121,7 @@ export class DashboardComponent implements OnInit {
   private api = inject(ApiService);
   data = signal<DashboardData | null>(null);
   loading = signal(true);
-  format = formatMoney;
+  formatAmount = formatAmount;
 
   quickLinks = [
     { path: '/transactions', icon: 'trending-up', label: 'Tranzaksiya' },
@@ -143,5 +145,9 @@ export class DashboardComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  goalAmountLabel(goal: { savedAmount: number; targetAmount: number }): string {
+    return `${formatAmount(goal.savedAmount)} / ${formatAmount(goal.targetAmount)} so'm`;
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto, UpdateExpenseDto } from './dto/expense.dto';
-import { ExpenseCategory } from '@prisma/client';
 
 @Injectable()
 export class ExpensesService {
@@ -28,7 +27,7 @@ export class ExpensesService {
       where: {
         userId,
         ...(date ? { date } : {}),
-        ...(category ? { category: category as ExpenseCategory } : {}),
+        ...(category ? { category } : {}),
       },
       orderBy: { date: 'desc' },
     });

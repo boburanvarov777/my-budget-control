@@ -1,13 +1,14 @@
 import { Component, input } from '@angular/core';
-import { formatMoney } from '../../utils/format.util';
+import { AmountPipe } from '../../pipes/money.pipe';
 
 @Component({
   selector: 'app-stat-card',
   standalone: true,
+  imports: [AmountPipe],
   template: `
     <div class="stat-card" [class.stat-card-accent]="highlight()">
       <p class="premium-caption">{{ label() }}</p>
-      <p class="amount-lg mt-2" [class]="colorClass()">{{ formatted() }}</p>
+      <p class="amount-lg mt-2" [class]="colorClass()">{{ amount() | amount }}</p>
     </div>
   `,
   styles: [
@@ -50,8 +51,6 @@ export class StatCardComponent {
   amount = input.required<number>();
   variant = input<'default' | 'success' | 'danger' | 'gold'>('default');
   highlight = input(false);
-
-  formatted = () => formatMoney(this.amount());
 
   colorClass = () => {
     const map = {
