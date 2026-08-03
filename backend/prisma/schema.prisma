@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ExpenseCategory {
+  FOOD
+  TRANSPORT
+  UTILITIES
+  CHILD
+  CAFE
+  PHONE
+  GAMING
+  GIFT
+  SHOPPING
+  PHARMACY
+  OTHER
+}
+
+enum IncomeCategory {
+  SALARY
+  BONUS
+  FREELANCE
+  SALE
+  OTHER
+}
+
+enum CreditStatus {
+  ACTIVE
+  PAID
+  OVERDUE
+}
+
+enum MicroLoanProvider {
+  UZUM
+  ALIF
+  YANGI
+  PAYME
+  OTHER
+}
+
+enum GoalType {
+  CAR
+  HOUSE
+  TRAVEL
+  LAPTOP
+  PHONE
+  EMERGENCY
+  CUSTOM
+}
+
+model User {
+  id             String   @id @default(uuid())
+  telegramId     String   @unique
+  username       String?
+  phone          String?
+  firstName      String?
+  lastName       String?
+  role           UserRole @default(USER)
+  monthlyIncome  Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  incomes        Income[]
+  expenses       Expense[]
+  credits        Credit[]
+  microLoans     MicroLoan[]
+  installments   Installment[]
+  goals          Goal[]
+  savings        Saving[]
+  budgetPlans    BudgetPlan[]
+  notifications  Notification[]
+}
+
+model Income {
+  id          String         @id @default(uuid())
+  userId      String
+  amount      Decimal        @db.Decimal(18, 2)
+  date        DateTime
+  note        String?
+  category    IncomeCategory @default(SALARY)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  userId      String
+  amount      Decimal         @db.Decimal(18, 2)
+  date        DateTime
+  note        String?
+  category    ExpenseCategory @default(OTHER)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, category])
+}
+
+model Credit {
+  id              String       @id @default(uuid())
+  userId          String
+  name            String
+  totalAmount     Decimal      @db.Decimal(18, 2)
+  interestRate    Decimal      @default(0) @db.Decimal(5, 2)
+  months          Int
+  startDate       DateTime
+  monthlyPayment  Decimal      @db.Decimal(18, 2)
+  remainingDebt   Decimal      @db.Decimal(18, 2)
+  nextPaymentDate DateTime?
+  status          CreditStatus @default(ACTIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MicroLoan {
+  id           String            @id @default(uuid())
+  userId       String
+  provider     MicroLoanProvider @default(OTHER)
+  amount       Decimal           @db.Decimal(18, 2)
+  takenDate    DateTime
+  dueDate      DateTime
+  isPaid       Boolean           @default(false)
+  notified     Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueDate])
+}
+
+model Installment {
+  id              String   @id @default(uuid())
+  userId          String
+  name            String
+  totalAmount     Decimal  @db.Decimal(18, 2)
+  monthlyPayment  Decimal  @db.Decimal(18, 2)
+  totalMonths     Int
+  paidMonths      Int      @default(0)
+  startDate       DateTime
+  nextPaymentDate DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Goal {
+  id            String   @id @default(uuid())
+  userId        String
+  name          String
+  type          GoalType @default(CUSTOM)
+  targetAmount  Decimal  @db.Decimal(18, 2)
+  savedAmount   Decimal  @default(0) @db.Decimal(18, 2)
+  monthlyAmount Decimal  @default(0) @db.Decimal(18, 2)
+  targetDate    DateTime?
+  icon          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Saving {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String   @default("Jamg'arma")
+  amount      Decimal  @db.Decimal(18, 2)
+  date        DateTime @default(now())
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BudgetPlan {
+  id                  String   @id @default(uuid())
+  userId              String
+  month               Int
+  year                Int
+  monthlyIncome       Decimal  @db.Decimal(18, 2)
+  mandatoryExpenses   Json
+  recommendedSavings  Json?
+  freeMoney           Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  sentAt    DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}

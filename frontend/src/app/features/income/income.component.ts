@@ -1,0 +1,148 @@
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { DatePipe } from '@angular/common';
+import { ApiService } from '../../core/services/api.service';
+import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
+
+interface Income {
+  id: string;
+  amount: number;
+  date: string;
+  category: string;
+  note?: string;
+}
+
+@Component({
+  selector: 'app-income',
+  standalone: true,
+  imports: [FormsModule, DatePipe],
+  template: `
+    <section class="space-y-4">
+      <h1 class="text-xl font-semibold">Daromad</h1>
+
+      <form class="space-y-3 rounded-2xl border border-border bg-surface-2 p-4" (ngSubmit)="submit()">
+        <input
+          type="number"
+          class="field"
+          placeholder="Summa"
+          [(ngModel)]="form.amount"
+          name="amount"
+          required
+        />
+        <input type="date" class="field" [(ngModel)]="form.date" name="date" required />
+        <select class="field" [(ngModel)]="form.category" name="category">
+          @for (c of categories; track c.value) {
+            <option [value]="c.value">{{ c.label }}</option>
+          }
+        </select>
+        <input type="text" class="field" placeholder="Izoh" [(ngModel)]="form.note" name="note" />
+        <button type="submit" class="btn-primary">Qo'shish</button>
+      </form>
+
+      <div class="space-y-2">
+        @for (item of items(); track item.id) {
+          <div class="item-row">
+            <div>
+              <p class="font-medium text-success">{{ format(item.amount) }}</p>
+              <p class="text-xs text-muted">{{ item.category }} · {{ item.date | date: 'd MMM' }}</p>
+            </div>
+            <button type="button" class="text-danger text-sm" (click)="remove(item.id)">×</button>
+          </div>
+        }
+      </div>
+    </section>
+  `,
+  styles: [
+    `
+      .border-border {
+        border-color: var(--color-border);
+      }
+      .bg-surface-2 {
+        background: var(--color-surface-2);
+      }
+      .text-muted {
+        color: var(--color-muted);
+      }
+      .text-success {
+        color: var(--color-success);
+      }
+      .text-danger {
+        color: var(--color-danger);
+      }
+      .field {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--color-border);
+        background: var(--color-bg);
+        color: var(--color-text);
+        padding: 0.75rem 1rem;
+      }
+      .btn-primary {
+        width: 100%;
+        border-radius: 12px;
+        background: var(--color-accent);
+        color: white;
+        padding: 0.75rem;
+        border: none;
+      }
+      .item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 16px;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-2);
+        padding: 0.875rem 1rem;
+      }
+    `,
+  ],
+})
+export class IncomeComponent implements OnInit {
+  private api = inject(ApiService);
+  items = signal<Income[]>([]);
+  format = formatMoney;
+
+  categories = [
+    { value: 'SALARY', label: 'Ish haqi' },
+    { value: 'BONUS', label: 'Bonus' },
+    { value: 'FREELANCE', label: 'Freelance' },
+    { value: 'SALE', label: 'Sotuv' },
+    { value: 'OTHER', label: 'Boshqa' },
+  ];
+
+  form = {
+    amount: null as number | null,
+    date: new Date().toISOString().slice(0, 10),
+    category: 'SALARY',
+    note: '',
+  };
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    const { month, year } = currentMonthYear();
+    this.api.get<Income[]>('/incomes', { month, year }).subscribe((res) => this.items.set(res));
+  }
+
+  submit(): void {
+    if (!this.form.amount) return;
+    this.api
+      .post('/incomes', {
+        amount: this.form.amount,
+        date: this.form.date,
+        category: this.form.category,
+        note: this.form.note || undefined,
+      })
+      .subscribe(() => {
+        this.form.amount = null;
+        this.form.note = '';
+        this.load();
+      });
+  }
+
+  remove(id: string): void {
+    this.api.delete(`/incomes/${id}`).subscribe(() => this.load());
+  }
+}
