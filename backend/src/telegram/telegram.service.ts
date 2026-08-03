@@ -76,7 +76,9 @@ export class TelegramService {
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
     if (!token) return;
 
-    const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook`;
+    const base = appUrl.replace(/\/$/, '');
+    const webAppUrl = `${base}/auth`;
+    const webhookUrl = `${base}/api/telegram/webhook`;
 
     try {
       await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
@@ -86,7 +88,7 @@ export class TelegramService {
           menu_button: {
             type: 'web_app',
             text: "Ro'yxatdan o'ting",
-            web_app: { url: appUrl },
+            web_app: { url: webAppUrl },
           },
         }),
       });
@@ -94,10 +96,22 @@ export class TelegramService {
       await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message'] }),
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ['message'],
+          drop_pending_updates: true,
+        }),
       });
 
-      this.logger.log(`Bot configured: webhook=${webhookUrl}`);
+      await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commands: [{ command: 'start', description: "Ro'yxatdan o'tish" }],
+        }),
+      });
+
+      this.logger.log(`Bot configured: webapp=${webAppUrl} webhook=${webhookUrl}`);
     } catch (err) {
       this.logger.error('Bot setup failed', err);
     }

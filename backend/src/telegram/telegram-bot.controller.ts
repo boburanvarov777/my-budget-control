@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TelegramService } from '../telegram/telegram.service';
 
@@ -20,6 +20,7 @@ export class TelegramBotController {
   ) {}
 
   @Post('webhook')
+  @HttpCode(200)
   async webhook(@Body() update: TelegramUpdate) {
     const message = update.message;
     if (!message?.text || !message.chat?.id) {
@@ -28,16 +29,18 @@ export class TelegramBotController {
 
     const text = message.text.trim();
     const chatId = message.chat.id;
-    const appUrl =
+    const baseUrl =
       this.config.get<string>('WEBAPP_URL') ??
       this.config.get<string>('FRONTEND_URL') ??
       'https://budget-app-production-c406.up.railway.app';
+    const appUrl = `${baseUrl.replace(/\/$/, '')}/auth`;
 
     if (text === '/start' || text.startsWith('/start ')) {
+      this.logger.log(`/start from chat ${chatId}`);
       const name = message.from?.first_name ?? 'Bobur';
       await this.telegram.sendMessageWithWebApp(
         chatId,
-        `Salom ${name} 👋\n\nBudget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\nDavom etish uchun ro'yxatdan o'ting.`,
+        `Salom ${name} 👋\n\nBudget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\nDavom etish uchun pastdagi tugmani bosing.`,
         "Ro'yxatdan o'ting",
         appUrl,
       );
