@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 declare global {
   interface Window {
@@ -23,20 +23,25 @@ interface TelegramWebApp {
   close: () => void;
   setHeaderColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
+  isExpanded?: boolean;
+  isFullscreen?: boolean;
+  requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
+  themeParams: Record<string, string>;
+  colorScheme: 'light' | 'dark';
   requestContact?: (
     callback: (shared: boolean, contact?: { phone_number: string }) => void,
   ) => void;
   requestPhoneNumber?: (
     callback: (shared: boolean, phone?: string) => void,
   ) => void;
-  requestFullscreen?: () => void;
   openTelegramLink?: (url: string) => void;
-  themeParams: Record<string, string>;
-  colorScheme: 'light' | 'dark';
 }
 
 @Injectable({ providedIn: 'root' })
 export class TelegramService {
+  readonly fullscreen = signal(false);
+
   get webApp(): TelegramWebApp | null {
     return typeof window !== 'undefined' ? window.Telegram?.WebApp ?? null : null;
   }
@@ -45,16 +50,32 @@ export class TelegramService {
     const tg = this.webApp;
     if (!tg) return;
     tg.ready();
-    tg.setHeaderColor('#09090b');
-    tg.setBackgroundColor('#09090b');
+    tg.setHeaderColor('#090909');
+    tg.setBackgroundColor('#090909');
   }
 
-  expandApp(): void {
+  isFullscreen(): boolean {
+    return this.fullscreen() || !!this.webApp?.isFullscreen;
+  }
+
+  enterFullscreen(): void {
     const tg = this.webApp;
     if (!tg) return;
     tg.expand();
-    if (typeof tg.requestFullscreen === 'function') {
-      tg.requestFullscreen();
+    tg.requestFullscreen?.();
+    this.fullscreen.set(true);
+  }
+
+  exitFullscreen(): void {
+    this.webApp?.exitFullscreen?.();
+    this.fullscreen.set(false);
+  }
+
+  toggleFullscreen(): void {
+    if (this.isFullscreen()) {
+      this.exitFullscreen();
+    } else {
+      this.enterFullscreen();
     }
   }
 

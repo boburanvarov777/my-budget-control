@@ -2,15 +2,20 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { FullscreenToggleComponent } from '../../shared/components/fullscreen-toggle/fullscreen-toggle.component';
 import { AuthService } from '../../core/services/auth.service';
 import { TelegramService } from '../../core/services/telegram.service';
 
 @Component({
   selector: 'app-auth',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, FullscreenToggleComponent],
   template: `
     <div class="auth-screen premium-safe-top premium-safe-bottom">
+      <div class="auth-topbar">
+        <app-fullscreen-toggle />
+      </div>
+
       @if (phase() === 'welcome') {
         <div class="auth-content">
           <div class="auth-brand">
@@ -48,10 +53,23 @@ import { TelegramService } from '../../core/services/telegram.service';
       .auth-screen {
         min-height: 100dvh;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
         padding: 24px 16px;
         background: var(--color-bg);
+      }
+
+      .auth-topbar {
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
+        max-width: 32rem;
+        margin: 0 auto 16px;
+      }
+
+      .auth-screen:has(.auth-content),
+      .auth-screen:has(.premium-loading) {
+        align-items: center;
+        justify-content: center;
       }
 
       .auth-content {
@@ -92,8 +110,6 @@ export class AuthComponent implements OnInit {
   loading = signal(true);
 
   async ngOnInit(): Promise<void> {
-    this.telegram.expandApp();
-
     const initData = await this.waitForInitData();
     if (!initData) {
       this.phase.set('welcome');

@@ -32,6 +32,8 @@ import {
   BarChart3,
   Sparkles,
   Calendar,
+  Maximize2,
+  Minimize2,
   LucideIconData,
 } from 'lucide-angular';
 
@@ -68,6 +70,8 @@ const ICONS: Record<string, LucideIconData> = {
   'bar-chart-3': BarChart3,
   sparkles: Sparkles,
   calendar: Calendar,
+  'maximize-2': Maximize2,
+  'minimize-2': Minimize2,
 };
 
 @Component({
