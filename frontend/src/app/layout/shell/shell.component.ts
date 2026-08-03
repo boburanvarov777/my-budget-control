@@ -42,7 +42,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         position: sticky;
         top: 0;
         z-index: 30;
-        padding: 8px 0 4px;
+        padding: 18px 0 8px;
         background: linear-gradient(180deg, var(--color-bg) 70%, transparent);
       }
 

@@ -109,7 +109,7 @@ button {
 }
 
 .premium-safe-top {
-  padding-top: max(12px, env(safe-area-inset-top));
+  padding-top: max(20px, calc(8px + env(safe-area-inset-top)));
 }
 
 .premium-safe-bottom {

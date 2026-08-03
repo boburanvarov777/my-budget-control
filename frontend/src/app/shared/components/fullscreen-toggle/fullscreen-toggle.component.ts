@@ -21,6 +21,11 @@ import { TelegramService } from '../../../core/services/telegram.service';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        margin-top: 14px;
+      }
+
       .fullscreen-btn {
         display: flex;
         align-items: center;

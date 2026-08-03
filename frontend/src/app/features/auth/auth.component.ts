@@ -63,7 +63,7 @@ import { TelegramService } from '../../core/services/telegram.service';
         justify-content: flex-end;
         width: 100%;
         max-width: 32rem;
-        margin: 0 auto 16px;
+        margin: 12px auto 16px;
       }
 
       .auth-screen:has(.auth-content),
