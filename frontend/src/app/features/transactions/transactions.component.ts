@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -44,6 +45,7 @@ interface CategoryItem {
   imports: [
     FormsModule,
     DatePipe,
+    RouterLink,
     PageHeaderComponent,
     FabComponent,
     IconComponent,
@@ -91,7 +93,10 @@ interface CategoryItem {
           </div>
 
           <div class="premium-field">
-            <label class="premium-label">Kategoriya</label>
+            <div class="label-row">
+              <label class="premium-label">Kategoriya</label>
+              <a routerLink="/categories" class="link-btn">Boshqarish</a>
+            </div>
             <select
               class="premium-select"
               [class.premium-select-error]="!!errors()['category']"
@@ -205,6 +210,21 @@ interface CategoryItem {
       .flex { display: flex; }
       .items-center { align-items: center; }
       .gap-3 { gap: 12px; }
+
+      .label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .label-row .premium-label { margin-bottom: 0; }
+
+      .link-btn {
+        color: var(--color-gold);
+        font-size: 14px;
+        text-decoration: none;
+      }
 
       .icon-btn {
         display: flex;

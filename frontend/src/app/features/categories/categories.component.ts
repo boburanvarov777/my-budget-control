@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -15,7 +15,7 @@ interface CategoryItem {
   code: string;
   label: string;
   icon?: string | null;
-  custom: boolean;
+  custom?: boolean;
 }
 
 @Component({
@@ -26,7 +26,7 @@ interface CategoryItem {
     <section class="premium-page">
       <app-page-header
         title="Kategoriyalar"
-        subtitle="Kirim va chiqim kategoriyalarini boshqaring"
+        subtitle="O'z kategoriyangizni qo'shing yoki o'chiring"
       />
 
       <div class="premium-segment">
@@ -69,41 +69,101 @@ interface CategoryItem {
         </div>
       </div>
 
-      <div class="space-y-2">
-        @for (c of activeList(); track c.code) {
-          <div class="premium-list-item category-item">
-            <span>{{ optionLabel(c) }}</span>
-            @if (c.custom && c.id) {
-              <button type="button" class="icon-btn" (click)="removeCategory(c.id, c.label)">
-                <app-icon name="trash-2" [size]="16" />
-              </button>
-            } @else {
-              <span class="premium-small premium-muted">Tizim</span>
+      <div class="section">
+        <h2 class="section-title">Mening kategoriyalarim</h2>
+        @if (customList().length) {
+          <div class="space-y-2">
+            @for (c of customList(); track c.id) {
+              <div class="premium-list-item category-item">
+                <span>{{ optionLabel(c) }}</span>
+                <button type="button" class="delete-btn" (click)="removeCategory(c.id!, c.label)">
+                  <app-icon name="trash-2" [size]="16" />
+                  O'chirish
+                </button>
+              </div>
             }
           </div>
+        } @else {
+          <div class="premium-card premium-muted premium-small empty-hint">
+            Hali o'z kategoriyangiz yo'q. Yuqorida nom yozib "Qo'shish" bosing.
+          </div>
         }
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Tizim kategoriyalari</h2>
+        <p class="premium-small premium-muted section-note">
+          Standart kategoriyalar o'chirilmaydi
+        </p>
+        <div class="space-y-2">
+          @for (c of systemList(); track c.code) {
+            <div class="premium-list-item category-item system">
+              <span>{{ optionLabel(c) }}</span>
+              <span class="premium-small premium-muted">Tizim</span>
+            </div>
+          }
+        </div>
       </div>
     </section>
   `,
   styles: [
     `
-      .add-card { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-      .add-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-      .space-y-2 > * + * { margin-top: 8px; }
-      .category-item { min-height: 52px; }
-      .icon-btn {
+      .add-card {
         display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .add-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+
+      .section {
+        margin-bottom: 24px;
+      }
+
+      .section-title {
+        margin: 0 0 8px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .section-note {
+        margin: 0 0 10px;
+      }
+
+      .space-y-2 > * + * {
+        margin-top: 8px;
+      }
+
+      .category-item {
+        min-height: 52px;
+      }
+
+      .category-item.system {
+        opacity: 0.85;
+      }
+
+      .delete-btn {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        border: none;
+        gap: 6px;
+        border: 1px solid rgba(229, 57, 53, 0.35);
         border-radius: 10px;
-        background: transparent;
-        color: var(--color-muted-2);
+        background: rgba(229, 57, 53, 0.1);
+        color: var(--color-danger);
+        font-size: 13px;
+        font-weight: 500;
+        padding: 8px 12px;
         cursor: pointer;
       }
-      .icon-btn:hover { color: var(--color-danger); }
+
+      .empty-hint {
+        padding: 14px 16px;
+      }
     `,
   ],
 })
@@ -118,8 +178,12 @@ export class CategoriesComponent implements OnInit {
   newLabel = '';
   adding = signal(false);
 
-  activeList = () =>
-    this.tab() === 'income' ? this.incomeCategories() : this.expenseCategories();
+  activeList = computed(() =>
+    this.tab() === 'income' ? this.incomeCategories() : this.expenseCategories(),
+  );
+
+  customList = computed(() => this.activeList().filter((c) => !!c.id));
+  systemList = computed(() => this.activeList().filter((c) => !c.id));
 
   ngOnInit(): void {
     this.loadAll();
@@ -131,10 +195,12 @@ export class CategoriesComponent implements OnInit {
 
   loadAll(): void {
     this.api.get<CategoryItem[]>('/categories', { type: 'INCOME' }).subscribe({
-      next: (r) => this.incomeCategories.set(r),
+      next: (r) => this.incomeCategories.set(this.normalize(r)),
+      error: () => this.toast.error('Kategoriyalar yuklanmadi'),
     });
     this.api.get<CategoryItem[]>('/categories', { type: 'EXPENSE' }).subscribe({
-      next: (r) => this.expenseCategories.set(r),
+      next: (r) => this.expenseCategories.set(this.normalize(r)),
+      error: () => this.toast.error('Kategoriyalar yuklanmadi'),
     });
   }
 
@@ -188,5 +254,12 @@ export class CategoriesComponent implements OnInit {
       },
       error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
     });
+  }
+
+  private normalize(items: CategoryItem[]): CategoryItem[] {
+    return items.map((c) => ({
+      ...c,
+      custom: c.custom ?? !!c.id,
+    }));
   }
 }
