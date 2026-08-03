@@ -6,11 +6,15 @@ cd /app/backend
 echo "Running database migrations..."
 npx prisma migrate deploy 2>/dev/null || npx prisma db push --accept-data-loss
 
-echo "Starting backend..."
+echo "Starting backend on port 3000..."
+export BACKEND_PORT=3000
 node dist/main &
 BACKEND_PID=$!
 
-echo "Starting nginx on port 8080..."
+NGINX_PORT="${PORT:-8080}"
+echo "Starting nginx on port ${NGINX_PORT}..."
+sed "s/listen 8080/listen ${NGINX_PORT}/" /etc/nginx/sites-available/default > /tmp/nginx.conf \
+  && mv /tmp/nginx.conf /etc/nginx/sites-available/default
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 

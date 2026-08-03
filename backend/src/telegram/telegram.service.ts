@@ -12,7 +12,7 @@ export class TelegramService {
     private config: ConfigService,
   ) {}
 
-  async sendMessage(chatId: string, text: string) {
+  async sendMessage(chatId: string | number, text: string) {
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
     if (!token) {
       this.logger.warn('TELEGRAM_BOT_TOKEN not set');
@@ -36,6 +36,70 @@ export class TelegramService {
       }
     } catch (err) {
       this.logger.error('Failed to send Telegram message', err);
+    }
+  }
+
+  async sendMessageWithWebApp(
+    chatId: string | number,
+    text: string,
+    buttonText: string,
+    webAppUrl: string,
+  ) {
+    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!token) return;
+
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: buttonText, web_app: { url: webAppUrl } }],
+            ],
+          },
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; description?: string };
+      if (!data.ok) {
+        this.logger.error(`Telegram web_app button error: ${data.description}`);
+      }
+    } catch (err) {
+      this.logger.error('Failed to send web app button', err);
+    }
+  }
+
+  async setupBot(appUrl: string) {
+    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!token) return;
+
+    const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook`;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menu_button: {
+            type: 'web_app',
+            text: 'Budget Control',
+            web_app: { url: appUrl },
+          },
+        }),
+      });
+
+      await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message'] }),
+      });
+
+      this.logger.log(`Bot configured: webhook=${webhookUrl}`);
+    } catch (err) {
+      this.logger.error('Bot setup failed', err);
     }
   }
 
