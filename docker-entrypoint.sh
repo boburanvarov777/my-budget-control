@@ -3,8 +3,13 @@ set -e
 
 cd /app/backend
 
-echo "Running database migrations..."
-npx prisma migrate deploy 2>/dev/null || npx prisma db push --accept-data-loss
+if [ "$RESET_DB" = "1" ]; then
+  echo "RESET_DB=1 — wiping database and reapplying migrations..."
+  npx prisma migrate reset --force
+else
+  echo "Running database migrations..."
+  npx prisma migrate deploy 2>/dev/null || npx prisma db push --accept-data-loss
+fi
 
 echo "Starting backend on port 3000..."
 export BACKEND_PORT=3000
