@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsNotEmpty,
@@ -8,6 +9,7 @@ import {
 } from 'class-validator';
 
 export class CreateIncomeDto {
+  @Type(() => Number)
   @IsNumber()
   @Min(0.01)
   amount!: number;
@@ -25,6 +27,7 @@ export class CreateIncomeDto {
 }
 
 export class UpdateIncomeDto {
+  @Type(() => Number)
   @IsNumber()
   @Min(0.01)
   @IsOptional()

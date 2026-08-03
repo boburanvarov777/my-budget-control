@@ -1,6 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Income } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { toNumber } from '../common/utils/decimal.util';
 import { CreateIncomeDto, UpdateIncomeDto } from './dto/income.dto';
+
+function serializeIncome(row: Income) {
+  return {
+    ...row,
+    amount: toNumber(row.amount),
+  };
+}
 
 @Injectable()
 export class IncomesService {
@@ -15,16 +24,17 @@ export class IncomesService {
     return { gte: start, lte: end };
   }
 
-  findAll(userId: string, month?: string, year?: string) {
+  async findAll(userId: string, month?: string, year?: string) {
     const date = this.dateFilter(month, year);
-    return this.prisma.income.findMany({
+    const rows = await this.prisma.income.findMany({
       where: { userId, ...(date ? { date } : {}) },
       orderBy: { date: 'desc' },
     });
+    return rows.map(serializeIncome);
   }
 
-  create(userId: string, dto: CreateIncomeDto) {
-    return this.prisma.income.create({
+  async create(userId: string, dto: CreateIncomeDto) {
+    const row = await this.prisma.income.create({
       data: {
         userId,
         amount: dto.amount,
@@ -33,11 +43,12 @@ export class IncomesService {
         note: dto.note,
       },
     });
+    return serializeIncome(row);
   }
 
   async update(userId: string, id: string, dto: UpdateIncomeDto) {
     await this.ensureOwned(userId, id);
-    return this.prisma.income.update({
+    const row = await this.prisma.income.update({
       where: { id },
       data: {
         ...(dto.amount != null ? { amount: dto.amount } : {}),
@@ -46,6 +57,7 @@ export class IncomesService {
         ...(dto.note !== undefined ? { note: dto.note } : {}),
       },
     });
+    return serializeIncome(row);
   }
 
   async remove(userId: string, id: string) {

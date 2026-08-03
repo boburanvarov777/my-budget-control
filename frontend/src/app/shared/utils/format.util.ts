@@ -1,11 +1,22 @@
-export function formatAmount(amount: number): string {
-  if (!Number.isFinite(amount)) return '0';
-  return Math.round(amount)
+export function coerceAmount(value: unknown): number {
+  if (value == null || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = Number(String(value));
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function formatAmount(amount: number | string | unknown): string {
+  const n = coerceAmount(amount);
+  return Math.round(n)
     .toLocaleString('uz-UZ')
     .replace(/\u00a0/g, ' ');
 }
 
-export function formatMoney(amount: number, currency = "so'm"): string {
+export function formatMoney(amount: number | string | unknown, currency = "so'm"): string {
   return `${formatAmount(amount)} ${currency}`;
 }
 

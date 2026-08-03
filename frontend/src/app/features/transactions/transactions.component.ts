@@ -421,7 +421,7 @@ export class TransactionsComponent implements OnInit {
     this.submitError.set('');
 
     const payload = {
-      amount: this.form.amount!,
+      amount: Number(this.form.amount),
       category: this.form.category,
       date: this.form.date,
       note: this.form.note?.trim() || undefined,

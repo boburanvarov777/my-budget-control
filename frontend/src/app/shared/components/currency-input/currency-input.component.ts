@@ -20,7 +20,7 @@ import { formatAmountInput, parseAmount } from '../../utils/format.util';
       [placeholder]="placeholder()"
       [value]="display()"
       (input)="onInput($event)"
-      (blur)="onTouched()"
+      (blur)="onBlur($event)"
     />
   `,
   providers: [
@@ -78,5 +78,12 @@ export class CurrencyInputComponent implements ControlValueAccessor {
     const nextPos = Math.max(0, formatted.length - cursorFromEnd);
     input.setSelectionRange(nextPos, nextPos);
     this.onChange(parsed);
+  }
+
+  onBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const parsed = parseAmount(input.value);
+    this.onChange(parsed);
+    this.onTouched();
   }
 }

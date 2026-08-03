@@ -18,38 +18,12 @@ interface AuthResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly tokenKey = 'bc_access_token';
-  private readonly userKey = 'bc_user';
-  private readonly tokenValue = signal<string | null>(this.readStoredToken());
-  readonly user = signal<AuthUser | null>(this.readStoredUser());
+  /** JWT faqat xotirada — localStorage/sessionStorage ishlatilmaydi */
+  private readonly tokenValue = signal<string | null>(null);
+  readonly user = signal<AuthUser | null>(null);
   readonly isAuthenticated = computed(() => !!this.tokenValue());
 
   constructor(private http: HttpClient) {}
-
-  private readStoredToken(): string | null {
-    if (typeof localStorage === 'undefined') return null;
-    return localStorage.getItem(this.tokenKey);
-  }
-
-  private readStoredUser(): AuthUser | null {
-    if (typeof localStorage === 'undefined') return null;
-    try {
-      const raw = localStorage.getItem(this.userKey);
-      return raw ? (JSON.parse(raw) as AuthUser) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private persistSession(token: string, user: AuthUser): void {
-    localStorage.setItem(this.tokenKey, token);
-    localStorage.setItem(this.userKey, JSON.stringify(user));
-  }
-
-  private clearStoredSession(): void {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.userKey);
-  }
 
   token(): string | null {
     return this.tokenValue();
@@ -69,12 +43,10 @@ export class AuthService {
     );
     this.tokenValue.set(res.accessToken);
     this.user.set(res.user);
-    this.persistSession(res.accessToken, res.user);
   }
 
   logout(): void {
     this.tokenValue.set(null);
     this.user.set(null);
-    this.clearStoredSession();
   }
 }
