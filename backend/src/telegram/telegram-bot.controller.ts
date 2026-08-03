@@ -1,5 +1,4 @@
 import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { TelegramService } from '../telegram/telegram.service';
 import { AuthService } from '../auth/auth.service';
 
@@ -26,7 +25,6 @@ export class TelegramBotController {
 
   constructor(
     private telegram: TelegramService,
-    private config: ConfigService,
     private auth: AuthService,
   ) {}
 
@@ -39,11 +37,6 @@ export class TelegramBotController {
     }
 
     const chatId = message.chat.id;
-    const baseUrl =
-      this.config.get<string>('WEBAPP_URL') ??
-      this.config.get<string>('FRONTEND_URL') ??
-      'https://budget-app-production-c406.up.railway.app';
-    const appUrl = `${baseUrl.replace(/\/$/, '')}/auth`;
 
     if (message.contact?.phone_number) {
       this.logger.log(`Contact received from chat ${chatId}`);
@@ -64,11 +57,11 @@ export class TelegramBotController {
     if (text === '/start' || text.startsWith('/start ')) {
       this.logger.log(`/start from chat ${chatId}`);
       const name = message.from?.first_name ?? 'Bobur';
-      await this.telegram.sendMessageWithWebApp(
+      await this.telegram.sendMessage(
         chatId,
-        `Salom ${name} 👋\n\nBudget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\nDavom etish uchun pastdagi tugmani bosing.`,
-        "Ro'yxatdan o'ting",
-        appUrl,
+        `Salom ${name} 👋\n\n` +
+          `Budget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\n` +
+          `Ro'yxatdan o'tish uchun pastdagi "Ilovani oching" tugmasini bosing.`,
       );
       return { ok: true };
     }
