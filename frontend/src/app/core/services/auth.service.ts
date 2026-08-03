@@ -16,42 +16,59 @@ interface AuthResponse {
   user: AuthUser;
 }
 
+interface RequestCodeResponse {
+  success: boolean;
+  message: string;
+  expiresInSeconds: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly tokenKey = 'budget_jwt';
-  private readonly userKey = 'budget_user';
-
-  readonly user = signal<AuthUser | null>(this.loadUser());
-  readonly isAuthenticated = computed(() => !!this.token());
+  private tokenValue: string | null = null;
+  readonly user = signal<AuthUser | null>(null);
+  readonly isAuthenticated = computed(() => !!this.tokenValue);
 
   constructor(private http: HttpClient) {}
 
   token(): string | null {
-    return sessionStorage.getItem(this.tokenKey);
+    return this.tokenValue;
   }
 
-  private loadUser(): AuthUser | null {
-    const raw = sessionStorage.getItem(this.userKey);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
-  }
-
-  async login(initData: string, phone: string, username?: string): Promise<void> {
-    const res = await firstValueFrom(
-      this.http.post<AuthResponse>(`${environment.apiUrl}/auth/telegram`, {
+  async requestCode(
+    initData: string,
+    phone: string,
+    username?: string,
+  ): Promise<RequestCodeResponse> {
+    return firstValueFrom(
+      this.http.post<RequestCodeResponse>(`${environment.apiUrl}/auth/request-code`, {
         initData,
         phone,
         username,
       }),
     );
+  }
 
-    sessionStorage.setItem(this.tokenKey, res.accessToken);
-    sessionStorage.setItem(this.userKey, JSON.stringify(res.user));
+  async verifyCode(
+    initData: string,
+    phone: string,
+    code: string,
+    username?: string,
+  ): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.post<AuthResponse>(`${environment.apiUrl}/auth/verify-code`, {
+        initData,
+        phone,
+        code,
+        username,
+      }),
+    );
+
+    this.tokenValue = res.accessToken;
     this.user.set(res.user);
   }
 
   logout(): void {
-    sessionStorage.removeItem(this.tokenKey);
-    sessionStorage.removeItem(this.userKey);
+    this.tokenValue = null;
     this.user.set(null);
   }
 }

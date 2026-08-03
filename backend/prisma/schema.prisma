@@ -230,3 +230,16 @@ model Notification {
 
   @@index([userId, isRead])
 }
+
+model VerificationCode {
+  id         String   @id @default(uuid())
+  telegramId String
+  phone      String
+  code       String
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([telegramId, phone, used])
+  @@index([expiresAt])
+}

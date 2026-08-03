@@ -14,11 +14,14 @@ export class TelegramService {
 
   async sendMessage(chatId: string, text: string) {
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!token) return;
+    if (!token) {
+      this.logger.warn('TELEGRAM_BOT_TOKEN not set');
+      return;
+    }
 
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
     try {
-      await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -27,6 +30,10 @@ export class TelegramService {
           parse_mode: 'HTML',
         }),
       });
+      const data = (await res.json()) as { ok?: boolean; description?: string };
+      if (!data.ok) {
+        this.logger.error(`Telegram API error: ${data.description ?? res.status}`);
+      }
     } catch (err) {
       this.logger.error('Failed to send Telegram message', err);
     }

@@ -23,7 +23,12 @@ interface TelegramWebApp {
   close: () => void;
   setHeaderColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
-  requestContact?: (callback: (shared: boolean, contact?: { phone_number: string }) => void) => void;
+  requestContact?: (
+    callback: (shared: boolean, contact?: { phone_number: string }) => void,
+  ) => void;
+  requestPhoneNumber?: (
+    callback: (shared: boolean, phone?: string) => void,
+  ) => void;
   openTelegramLink?: (url: string) => void;
   themeParams: Record<string, string>;
   colorScheme: 'light' | 'dark';
@@ -52,18 +57,33 @@ export class TelegramService {
     return this.webApp?.initDataUnsafe.user?.username;
   }
 
-  async requestPhone(): Promise<string | null> {
+  /** Faqat Telegram orqali o'z raqamini ulash — qo'lda kiritish yo'q */
+  async requestPhone(): Promise<string> {
     const tg = this.webApp;
-    if (!tg) return null;
+    if (!tg) {
+      throw new Error('Ilovani Telegram ichida oching');
+    }
+
+    if (typeof tg.requestPhoneNumber === 'function') {
+      const phone = await new Promise<string | null>((resolve) => {
+        tg.requestPhoneNumber!((shared, phoneNumber) => {
+          resolve(shared && phoneNumber ? phoneNumber : null);
+        });
+      });
+      if (phone) return phone;
+    }
 
     if (typeof tg.requestContact === 'function') {
-      return new Promise((resolve) => {
+      const phone = await new Promise<string | null>((resolve) => {
         tg.requestContact!((shared, contact) => {
           resolve(shared && contact?.phone_number ? contact.phone_number : null);
         });
       });
+      if (phone) return phone;
     }
 
-    return null;
+    throw new Error(
+      "Telegram orqali o'z raqamingizni yuborish majburiy. Pastdagi tugmani bosing va 'Raqamni yuborish'ni tanlang.",
+    );
   }
 }
