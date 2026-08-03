@@ -12,11 +12,12 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM node:22-alpine AS production
+FROM node:22-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache nginx
+RUN apt-get update && apt-get install -y --no-install-recommends nginx openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-build /app/backend/dist ./backend/dist
 COPY --from=backend-build /app/backend/node_modules ./backend/node_modules
