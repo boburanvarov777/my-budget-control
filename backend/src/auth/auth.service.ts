@@ -129,14 +129,33 @@ export class AuthService {
       `Foydalanuvchi: @${username ?? 'unknown'}\n` +
       `Amal qilish: 5 daqiqa`;
 
-    await this.telegram.sendMessage(channel, message);
+    const sentToChannel = await this.telegram.sendMessage(channel, message);
+
+    if (sentToChannel) {
+      await this.telegram.sendMessage(
+        telegramId,
+        `✅ Tasdiqlash kodi ${channel} kanaliga yuborildi.\n\n` +
+          `1. ${channel} kanalini oching\n` +
+          `2. Kodni nusxalang\n` +
+          `3. Shu chatga faqat 6 xonali kodni yozing`,
+      );
+      return;
+    }
+
+    await this.prisma.verificationCode.updateMany({
+      where: { telegramId: tgId, code, used: false },
+      data: { used: true },
+    });
 
     await this.telegram.sendMessage(
       telegramId,
-      `✅ Tasdiqlash kodi ${channel} kanaliga yuborildi.\n\n` +
+      `❌ Kod ${channel} kanaliga yuborilmadi.\n\n` +
+        `Bot kanalda admin emas yoki "Post Messages" huquqi yo'q.\n\n` +
+        `Tuzatish:\n` +
         `1. ${channel} kanalini oching\n` +
-        `2. Kodni nusxalang\n` +
-        `3. Shu chatga faqat 6 xonali kodni yozing`,
+        `2. Administrators → botni admin qiling\n` +
+        `3. "Post Messages" ni yoqing\n` +
+        `4. Qayta raqam yuboring`,
     );
   }
 
@@ -270,7 +289,17 @@ export class AuthService {
       `Foydalanuvchi: @${username ?? 'unknown'}\n` +
       `Amal qilish: 5 daqiqa`;
 
-    await this.telegram.sendMessage(channel, message);
+    const sentToChannel = await this.telegram.sendMessage(channel, message);
+
+    if (!sentToChannel) {
+      await this.prisma.verificationCode.updateMany({
+        where: { telegramId, code, used: false },
+        data: { used: true },
+      });
+      throw new BadRequestException(
+        `${channel} kanaliga kod yuborilmadi. Botni kanal admini qiling va "Post Messages" huquqini bering.`,
+      );
+    }
 
     return {
       success: true,
