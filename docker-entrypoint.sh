@@ -4,11 +4,14 @@ set -e
 cd /app/backend
 
 if [ "$RESET_DB" = "1" ]; then
-  echo "RESET_DB=1 — wiping database and reapplying schema..."
+  echo "WARNING: RESET_DB=1 wipes all user data. Remove this variable after initial setup."
   npx prisma db push --force-reset --accept-data-loss
 else
   echo "Running database migrations..."
-  npx prisma migrate deploy 2>/dev/null || npx prisma db push --accept-data-loss
+  if ! npx prisma migrate deploy; then
+    echo "migrate deploy failed — applying schema with db push (data preserved when possible)..."
+    npx prisma db push
+  fi
 fi
 
 echo "Starting backend on port 3000..."

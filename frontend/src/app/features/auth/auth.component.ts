@@ -110,6 +110,12 @@ export class AuthComponent implements OnInit {
   loading = signal(true);
 
   async ngOnInit(): Promise<void> {
+    if (this.auth.isAuthenticated()) {
+      await this.router.navigateByUrl('/dashboard');
+      this.loading.set(false);
+      return;
+    }
+
     const initData = await this.waitForInitData();
     if (!initData) {
       this.phase.set('welcome');
