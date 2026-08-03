@@ -134,7 +134,14 @@ export class DashboardComponent implements OnInit {
         this.data.set(res);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.data.set({
+          greeting: 'Foydalanuvchi',
+          month: { income: 0, expense: 0, debt: 0, savings: 0, remaining: 0 },
+          goals: [],
+        });
+        this.loading.set(false);
+      },
     });
   }
 }

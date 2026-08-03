@@ -92,7 +92,9 @@ export class AuthComponent implements OnInit {
   loading = signal(true);
 
   async ngOnInit(): Promise<void> {
-    const initData = this.telegram.getInitData();
+    this.telegram.expandApp();
+
+    const initData = await this.waitForInitData();
     if (!initData) {
       this.phase.set('welcome');
       this.loading.set(false);
@@ -104,8 +106,19 @@ export class AuthComponent implements OnInit {
       await this.router.navigateByUrl('/dashboard');
     } catch {
       this.phase.set('welcome');
+    } finally {
       this.loading.set(false);
     }
+  }
+
+  private async waitForInitData(maxMs = 3000): Promise<string> {
+    const started = Date.now();
+    while (Date.now() - started < maxMs) {
+      const initData = this.telegram.getInitData();
+      if (initData) return initData;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return this.telegram.getInitData();
   }
 
   async startRegistration(): Promise<void> {

@@ -18,14 +18,14 @@ interface AuthResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private tokenValue: string | null = null;
+  private readonly tokenValue = signal<string | null>(null);
   readonly user = signal<AuthUser | null>(null);
-  readonly isAuthenticated = computed(() => !!this.tokenValue);
+  readonly isAuthenticated = computed(() => !!this.tokenValue());
 
   constructor(private http: HttpClient) {}
 
   token(): string | null {
-    return this.tokenValue;
+    return this.tokenValue();
   }
 
   async beginRegistration(initData: string): Promise<void> {
@@ -40,12 +40,12 @@ export class AuthService {
         initData,
       }),
     );
-    this.tokenValue = res.accessToken;
+    this.tokenValue.set(res.accessToken);
     this.user.set(res.user);
   }
 
   logout(): void {
-    this.tokenValue = null;
+    this.tokenValue.set(null);
     this.user.set(null);
   }
 }
