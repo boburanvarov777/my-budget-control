@@ -1,7 +1,6 @@
 import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
 import { TelegramService } from '../telegram/telegram.service';
 import { AuthService } from '../auth/auth.service';
-import { looksLikePhone } from '../auth/telegram.util';
 
 interface TelegramUpdate {
   message?: {
@@ -66,9 +65,9 @@ export class TelegramBotController {
       return { ok: true };
     }
 
-    if (looksLikePhone(text)) {
-      this.logger.log(`Manual phone attempt from chat ${chatId}`);
+    if (/^\+?\d[\d\s\-()]{7,}$/.test(text)) {
       await this.auth.handleManualPhoneAttempt(chatId);
+      return { ok: true };
     }
 
     return { ok: true };

@@ -1,11 +1,13 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
+
+export class BeginRegistrationDto {
+  @IsString()
+  @IsNotEmpty()
+  initData!: string;
+}
 
 export class MiniAppLoginDto {
   @IsString()
   @IsNotEmpty()
   initData!: string;
-
-  @IsString()
-  @IsOptional()
-  username?: string;
 }

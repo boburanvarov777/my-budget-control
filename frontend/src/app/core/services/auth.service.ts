@@ -28,11 +28,16 @@ export class AuthService {
     return this.tokenValue;
   }
 
-  async miniAppLogin(initData: string, username?: string): Promise<void> {
+  async beginRegistration(initData: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post(`${environment.apiUrl}/auth/begin-registration`, { initData }),
+    );
+  }
+
+  async miniAppLogin(initData: string): Promise<void> {
     const res = await firstValueFrom(
       this.http.post<AuthResponse>(`${environment.apiUrl}/auth/mini-app-login`, {
         initData,
-        username,
       }),
     );
     this.tokenValue = res.accessToken;
