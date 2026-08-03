@@ -1,22 +1,26 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { IconComponent } from '../icon/icon.component';
 
 @Component({
   selector: 'app-bottom-nav',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    IconComponent,
+  ],
   template: `
-    <nav
-      class="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md"
-    >
-      <div class="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 py-2">
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
         @for (item of items; track item.path) {
           <a
             [routerLink]="item.path"
-            routerLinkActive="nav-active"
-            class="flex flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[10px] text-muted transition"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+            class="nav-item"
           >
-            <span class="text-base">{{ item.icon }}</span>
+            <app-icon [name]="item.icon" [size]="20" />
             <span>{{ item.label }}</span>
           </a>
         }
@@ -25,31 +29,54 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   `,
   styles: [
     `
-      :host {
-        display: block;
+      .bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 50;
+        padding-bottom: env(safe-area-inset-bottom);
+        background: rgba(17, 17, 17, 0.96);
+        border-top: 1px solid var(--color-border);
+        backdrop-filter: blur(12px);
       }
-      .border-border {
-        border-color: var(--color-border);
+
+      .bottom-nav-inner {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        max-width: 32rem;
+        margin: 0 auto;
+        padding: 8px 8px 10px;
       }
-      .bg-surface {
-        background: var(--color-surface);
+
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 4px;
+        border-radius: 12px;
+        color: var(--color-muted-2);
+        text-decoration: none;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        transition: color 250ms ease, background 250ms ease;
       }
-      .text-muted {
-        color: var(--color-muted);
-      }
-      .nav-active {
-        color: var(--color-accent);
-        background: var(--color-accent-soft);
+
+      .nav-item.active {
+        color: var(--color-gold);
+        background: var(--color-gold-soft);
       }
     `,
   ],
 })
 export class BottomNavComponent {
   items = [
-    { path: '/dashboard', icon: '🏠', label: 'Dashboard' },
-    { path: '/income', icon: '💰', label: 'Daromad' },
-    { path: '/expenses', icon: '💸', label: 'Xarajat' },
-    { path: '/goals', icon: '🎯', label: 'Maqsad' },
-    { path: '/settings', icon: '⚙️', label: 'Sozlama' },
+    { path: '/dashboard', icon: 'layout-dashboard', label: 'Dashboard', exact: true },
+    { path: '/transactions', icon: 'arrow-left-right', label: 'Tranzaksiya' },
+    { path: '/goals', icon: 'target', label: 'Maqsad' },
+    { path: '/debts', icon: 'credit-card', label: 'Qarz' },
+    { path: '/settings', icon: 'user', label: 'Profil' },
   ];
 }

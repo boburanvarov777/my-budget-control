@@ -5,11 +5,9 @@ import { formatMoney } from '../../utils/format.util';
   selector: 'app-stat-card',
   standalone: true,
   template: `
-    <div class="rounded-2xl border border-border bg-surface-2 p-4">
-      <p class="text-xs uppercase tracking-wide text-muted">{{ label() }}</p>
-      <p class="mt-1 text-lg font-semibold" [class]="colorClass()">
-        {{ formatted() }}
-      </p>
+    <div class="stat-card" [class.stat-card-accent]="highlight()">
+      <p class="premium-caption">{{ label() }}</p>
+      <p class="amount-lg mt-2" [class]="colorClass()">{{ formatted() }}</p>
     </div>
   `,
   styles: [
@@ -17,26 +15,32 @@ import { formatMoney } from '../../utils/format.util';
       :host {
         display: block;
       }
-      .border-border {
-        border-color: var(--color-border);
+
+      .stat-card {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-card);
+        padding: 16px;
+        box-shadow: var(--shadow-soft);
       }
-      .bg-surface-2 {
-        background: var(--color-surface-2);
+
+      .stat-card-accent {
+        position: relative;
       }
-      .text-muted {
-        color: var(--color-muted);
+
+      .stat-card-accent::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 16px;
+        right: 16px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+        opacity: 0.5;
       }
-      .text-success {
-        color: var(--color-success);
-      }
-      .text-danger {
-        color: var(--color-danger);
-      }
-      .text-accent {
-        color: var(--color-accent);
-      }
-      .text-default {
-        color: var(--color-text);
+
+      .mt-2 {
+        margin-top: 8px;
       }
     `,
   ],
@@ -44,16 +48,17 @@ import { formatMoney } from '../../utils/format.util';
 export class StatCardComponent {
   label = input.required<string>();
   amount = input.required<number>();
-  variant = input<'default' | 'success' | 'danger' | 'accent'>('default');
+  variant = input<'default' | 'success' | 'danger' | 'gold'>('default');
+  highlight = input(false);
 
   formatted = () => formatMoney(this.amount());
 
   colorClass = () => {
     const map = {
-      default: 'text-default',
+      default: '',
       success: 'text-success',
       danger: 'text-danger',
-      accent: 'text-accent',
+      gold: 'text-gold',
     };
     return map[this.variant()];
   };

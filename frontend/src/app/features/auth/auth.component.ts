@@ -1,68 +1,85 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AuthService } from '../../core/services/auth.service';
 import { TelegramService } from '../../core/services/telegram.service';
 
 @Component({
   selector: 'app-auth',
   standalone: true,
+  imports: [IconComponent],
   template: `
-    <div class="relative min-h-screen bg-bg">
+    <div class="auth-screen premium-safe-top premium-safe-bottom">
       @if (phase() === 'welcome') {
-        <div class="modal-overlay">
-          <div class="modal-card">
-            <div class="modal-icon">👋</div>
-            <h2 class="modal-title">Iltimos, ro'yxatdan o'ting</h2>
-            <p class="modal-text">
-              Ro'yxatdan o'tish uchun botda /start bosing va o'z raqamingizni yuboring.
-              Keyin ilovani qayta oching — bo'sh hisobingiz tayyor bo'ladi.
+        <div class="auth-content">
+          <div class="auth-brand">
+            <div class="brand-icon">
+              <app-icon name="shield" [size]="28" />
+            </div>
+            <p class="premium-caption">Budget Control</p>
+            <h1 class="premium-title">Shaxsiy moliya</h1>
+            <p class="premium-body premium-muted">
+              Premium moliyaviy boshqaruv ilovasi. Ro'yxatdan o'tish uchun botda
+              /start bosing va o'z raqamingizni yuboring.
             </p>
-            <button
-              type="button"
-              class="btn-primary w-full"
-              [disabled]="loading()"
-              (click)="startRegistration()"
-            >
-              {{ loading() ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish" }}
-            </button>
           </div>
+
+          <button
+            type="button"
+            class="premium-btn premium-btn-primary premium-btn-block"
+            [disabled]="loading()"
+            (click)="startRegistration()"
+          >
+            {{ loading() ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish" }}
+          </button>
         </div>
       }
 
       @if (loading() && phase() !== 'welcome') {
-        <div class="flex min-h-screen items-center justify-center text-muted">
-          Yuklanmoqda...
+        <div class="premium-loading">
+          <div class="premium-spinner"></div>
         </div>
       }
     </div>
   `,
   styles: [
     `
-      .bg-bg { background: var(--color-bg); }
-      .border-border { border-color: var(--color-border); }
-      .bg-surface { background: var(--color-surface); }
-      .text-muted { color: var(--color-muted); }
-      .modal-overlay {
-        position: fixed; inset: 0; z-index: 50;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
-        padding: 1rem;
+      .auth-screen {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+        background: var(--color-bg);
       }
-      .modal-card {
-        width: 100%; max-width: 22rem;
-        border-radius: 1.5rem; border: 1px solid var(--color-border);
-        background: var(--color-surface); padding: 1.75rem;
-        text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+
+      .auth-content {
+        width: 100%;
+        max-width: 22rem;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+        animation: fadeIn 250ms ease;
       }
-      .modal-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-      .modal-title { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
-      .modal-text { font-size: 0.875rem; color: var(--color-muted); margin: 0 0 1.25rem; line-height: 1.5; }
-      .btn-primary {
-        border-radius: 12px; background: var(--color-accent); color: white;
-        padding: 0.875rem; border: none; font-weight: 500; cursor: pointer;
+
+      .auth-brand {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       }
-      .btn-primary:disabled { opacity: 0.5; }
+
+      .brand-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        background: var(--color-gold-soft);
+        color: var(--color-gold);
+      }
     `,
   ],
 })

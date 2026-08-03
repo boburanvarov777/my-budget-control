@@ -1,54 +1,109 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
+  imports: [
+    PageHeaderComponent,
+    IconComponent,
+  ],
   template: `
-    <section class="space-y-4">
-      <h1 class="text-xl font-semibold">Sozlamalar</h1>
+    <section class="premium-page">
+      <app-page-header title="Profil" subtitle="Hisob va sozlamalar" />
 
       @if (user(); as u) {
-        <div class="card">
-          <p class="font-medium">{{ u.firstName ?? u.username }}</p>
-          <p class="text-sm text-muted">@{{ u.username ?? 'username' }}</p>
+        <div class="premium-card-hero premium-card-accent">
+          <div class="flex items-center gap-3">
+            <div class="avatar">
+              <app-icon name="user" [size]="22" />
+            </div>
+            <div>
+              <p class="premium-section-title">{{ u.firstName ?? u.username ?? 'Foydalanuvchi' }}</p>
+              @if (u.username) {
+                <p class="premium-small premium-muted">@{{ u.username }}</p>
+              }
+            </div>
+          </div>
         </div>
       }
 
       @if (report(); as r) {
-        <div class="card space-y-2">
-          <h3 class="text-sm text-muted">Oy oxiri hisobot</h3>
-          <p>Daromad: {{ format(r.income) }}</p>
-          <p>Xarajat: {{ format(r.expense) }}</p>
-          <p>Jamg'arma: {{ format(r.savings) }}</p>
-          <p>Qolgan: {{ format(r.remaining) }}</p>
+        <div class="premium-card">
+          <div class="flex items-center gap-2 mb-3">
+            <app-icon name="file-text" [size]="16" class="text-gold" />
+            <h3 class="premium-caption">Oy oxiri hisobot</h3>
+          </div>
+          <div class="premium-card-row">
+            <span class="premium-muted">Daromad</span>
+            <span class="text-success">{{ format(r.income) }}</span>
+          </div>
+          <div class="premium-card-row">
+            <span class="premium-muted">Xarajat</span>
+            <span class="text-danger">{{ format(r.expense) }}</span>
+          </div>
+          <div class="premium-card-row">
+            <span class="premium-muted">Jamg'arma</span>
+            <span class="text-gold">{{ format(r.savings) }}</span>
+          </div>
+          <div class="premium-card-row">
+            <span class="premium-muted">Qolgan</span>
+            <span>{{ format(r.remaining) }}</span>
+          </div>
         </div>
       }
 
-      <div class="card space-y-2">
-        <h3 class="text-sm text-muted">Bildirishnomalar</h3>
+      <div class="premium-card">
+        <div class="flex items-center gap-2 mb-3">
+          <app-icon name="bell" [size]="16" class="text-gold" />
+          <h3 class="premium-caption">Bildirishnomalar</h3>
+        </div>
         @for (n of notifications(); track n.id) {
-          <div class="text-sm border-b border-border pb-2">
-            <p>{{ n.title }}</p>
-            <p class="text-muted text-xs">{{ n.message }}</p>
+          <div class="notify-item">
+            <p class="premium-small">{{ n.title }}</p>
+            <p class="premium-caption">{{ n.message }}</p>
           </div>
         } @empty {
-          <p class="text-muted text-sm">Bildirishnomalar yo'q</p>
+          <p class="premium-small premium-muted">Bildirishnomalar yo'q</p>
         }
       </div>
 
-      <button class="btn-danger" (click)="logout()">Chiqish</button>
+      <button type="button" class="premium-btn premium-btn-danger premium-btn-block" (click)="logout()">
+        <app-icon name="log-out" [size]="18" />
+        Chiqish
+      </button>
     </section>
   `,
-  styles: [`
-    .card { border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-surface-2); padding: 1rem; }
-    .text-muted { color: var(--color-muted); }
-    .border-border { border-color: var(--color-border); }
-    .btn-danger { width: 100%; border-radius: 12px; background: transparent; border: 1px solid var(--color-danger); color: var(--color-danger); padding: 0.75rem; }
-  `],
+  styles: [
+    `
+      .flex { display: flex; }
+      .items-center { align-items: center; }
+      .gap-2 { gap: 8px; }
+      .gap-3 { gap: 12px; }
+      .mb-3 { margin-bottom: 12px; }
+      .avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: var(--color-gold-soft);
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        color: var(--color-gold);
+      }
+      .notify-item {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .notify-item:last-child { border-bottom: none; padding-bottom: 0; }
+    `,
+  ],
 })
 export class SettingsComponent implements OnInit {
   private auth = inject(AuthService);

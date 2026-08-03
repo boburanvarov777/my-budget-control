@@ -7,8 +7,8 @@ import { BottomNavComponent } from '../../shared/components/bottom-nav/bottom-na
   standalone: true,
   imports: [RouterOutlet, BottomNavComponent],
   template: `
-    <div class="min-h-screen bg-bg pb-24">
-      <div class="mx-auto max-w-lg px-4 pt-4">
+    <div class="shell premium-safe-top premium-safe-bottom">
+      <div class="shell-inner">
         <router-outlet />
       </div>
       <app-bottom-nav />
@@ -16,8 +16,15 @@ import { BottomNavComponent } from '../../shared/components/bottom-nav/bottom-na
   `,
   styles: [
     `
-      .bg-bg {
+      .shell {
+        min-height: 100dvh;
         background: var(--color-bg);
+      }
+
+      .shell-inner {
+        max-width: 32rem;
+        margin: 0 auto;
+        padding: 0 16px;
       }
     `,
   ],

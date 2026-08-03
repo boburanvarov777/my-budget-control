@@ -22,6 +22,20 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'transactions',
+        loadComponent: () =>
+          import('./features/transactions/transactions.component').then(
+            (m) => m.TransactionsComponent,
+          ),
+      },
+      {
+        path: 'debts',
+        loadComponent: () =>
+          import('./features/debts/debts.component').then(
+            (m) => m.DebtsComponent,
+          ),
+      },
+      {
         path: 'income',
         loadComponent: () =>
           import('./features/income/income.component').then(

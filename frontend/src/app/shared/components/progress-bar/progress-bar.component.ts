@@ -4,34 +4,37 @@ import { Component, input } from '@angular/core';
   selector: 'app-progress-bar',
   standalone: true,
   template: `
-    <div class="space-y-2">
+    <div class="progress-wrap">
       @if (label()) {
-        <div class="flex items-center justify-between text-sm">
+        <div class="progress-head premium-small">
           <span>{{ label() }}</span>
-          <span class="text-muted">{{ progress() }}%</span>
+          <span class="premium-muted">{{ progress() }}%</span>
         </div>
       }
-      <div class="h-2 overflow-hidden rounded-full bg-border">
-        <div
-          class="h-full rounded-full bg-accent transition-all duration-500"
-          [style.width.%]="progress()"
-        ></div>
+      <div class="premium-progress-track">
+        <div class="premium-progress-fill" [style.width.%]="clamped()"></div>
       </div>
       @if (subtitle()) {
-        <p class="text-xs text-muted">{{ subtitle() }}</p>
+        <p class="premium-caption mt-2">{{ subtitle() }}</p>
       }
     </div>
   `,
   styles: [
     `
-      .bg-border {
-        background: var(--color-border);
+      .progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
-      .bg-accent {
-        background: var(--color-accent);
+
+      .progress-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
-      .text-muted {
-        color: var(--color-muted);
+
+      .mt-2 {
+        margin-top: 4px;
       }
     `,
   ],
@@ -40,4 +43,6 @@ export class ProgressBarComponent {
   label = input<string>('');
   subtitle = input<string>('');
   progress = input.required<number>();
+
+  clamped = () => Math.min(100, Math.max(0, this.progress()));
 }

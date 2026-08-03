@@ -33,6 +33,7 @@
     "@tma.js/sdk": "^3.3.0",
     "autoprefixer": "^10.5.4",
     "chart.js": "^4.5.1",
+    "lucide-angular": "^1.0.0",
     "postcss": "^8.5.25",
     "rxjs": "~7.8.0",
     "tailwindcss": "^4.3.3",

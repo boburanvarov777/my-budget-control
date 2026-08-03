@@ -1,57 +1,115 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney, formatDate } from '../../shared/utils/format.util';
 import { ProgressBarComponent } from '../../shared/components/progress-bar/progress-bar.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { FabComponent } from '../../shared/components/fab/fab.component';
+import { formatMoney } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-credits',
   standalone: true,
-  imports: [FormsModule, DatePipe, ProgressBarComponent],
+  imports: [
+    FormsModule,
+    DatePipe,
+    NgClass,
+    ProgressBarComponent,
+    PageHeaderComponent,
+    FabComponent,
+    IconComponent,
+  ],
   template: `
-    <section class="space-y-4">
-      <h1 class="text-xl font-semibold">Kreditlar</h1>
+    <section class="premium-page">
+      <app-page-header title="Kreditlar" subtitle="Bank kreditlari va to'lovlar" />
 
-      <form class="card space-y-3" (ngSubmit)="submit()">
-        <input class="field" placeholder="Nomi" [(ngModel)]="form.name" name="name" required />
-        <input class="field" type="number" placeholder="Summa" [(ngModel)]="form.totalAmount" name="totalAmount" required />
-        <input class="field" type="number" placeholder="Foiz %" [(ngModel)]="form.interestRate" name="interestRate" />
-        <input class="field" type="number" placeholder="Oylar" [(ngModel)]="form.months" name="months" required />
-        <input class="field" type="date" [(ngModel)]="form.startDate" name="startDate" required />
-        <input class="field" type="number" placeholder="Oy to'lov" [(ngModel)]="form.monthlyPayment" name="monthlyPayment" required />
-        <button type="submit" class="btn-primary">Qo'shish</button>
-      </form>
+      @if (showForm()) {
+        <form class="premium-card space-y-4" (ngSubmit)="submit()">
+          <div class="premium-field">
+            <label class="premium-label">Nomi</label>
+            <input class="premium-input" placeholder="Masalan: Ipoteka" [(ngModel)]="form.name" name="name" required />
+          </div>
+          <div class="premium-grid-2">
+            <div class="premium-field">
+              <label class="premium-label">Jami summa</label>
+              <input class="premium-input" type="number" [(ngModel)]="form.totalAmount" name="totalAmount" required />
+            </div>
+            <div class="premium-field">
+              <label class="premium-label">Foiz %</label>
+              <input class="premium-input" type="number" [(ngModel)]="form.interestRate" name="interestRate" />
+            </div>
+          </div>
+          <div class="premium-grid-2">
+            <div class="premium-field">
+              <label class="premium-label">Oylar</label>
+              <input class="premium-input" type="number" [(ngModel)]="form.months" name="months" required />
+            </div>
+            <div class="premium-field">
+              <label class="premium-label">Oy to'lov</label>
+              <input class="premium-input" type="number" [(ngModel)]="form.monthlyPayment" name="monthlyPayment" required />
+            </div>
+          </div>
+          <div class="premium-field">
+            <label class="premium-label">Boshlanish sanasi</label>
+            <input class="premium-input" type="date" [(ngModel)]="form.startDate" name="startDate" required />
+          </div>
+          <div class="premium-grid-2">
+            <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="showForm.set(false)">Bekor</button>
+            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">Saqlash</button>
+          </div>
+        </form>
+      }
 
       @for (c of items(); track c.id) {
-        <div class="card space-y-2">
-          <div class="flex justify-between">
-            <h3 class="font-medium">{{ c.name }}</h3>
-            <span class="badge">{{ c.status }}</span>
+        <div class="premium-card premium-card-accent">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="premium-list-icon active">
+                <app-icon name="credit-card" [size]="18" />
+              </div>
+              <h3 class="premium-body">{{ c.name }}</h3>
+            </div>
+            <span class="premium-chip" [ngClass]="statusClass(c.status)">{{ c.status }}</span>
           </div>
           <app-progress-bar
             [progress]="progress(c)"
             [subtitle]="format(c.remainingDebt) + ' qolgan / ' + format(c.totalAmount)"
           />
-          <div class="grid grid-cols-2 gap-2 text-sm text-muted">
-            <span>To'lov: {{ format(c.monthlyPayment) }}</span>
-            <span>Keyingi: {{ c.nextPaymentDate | date: 'd-MMMM' }}</span>
+          <div class="premium-grid-2 mt-3">
+            <div>
+              <p class="premium-caption">Oylik to'lov</p>
+              <p class="premium-small">{{ format(c.monthlyPayment) }}</p>
+            </div>
+            <div>
+              <p class="premium-caption">Keyingi to'lov</p>
+              <p class="premium-small">{{ c.nextPaymentDate | date: 'd MMMM' }}</p>
+            </div>
           </div>
         </div>
+      } @empty {
+        <div class="premium-card premium-muted premium-small">Kreditlar yo'q</div>
       }
     </section>
+
+    <app-fab (clicked)="showForm.set(true)" />
   `,
-  styles: [`
-    .card { border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-surface-2); padding: 1rem; }
-    .field { width: 100%; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); padding: 0.75rem; }
-    .btn-primary { width: 100%; border-radius: 12px; background: var(--color-accent); color: white; padding: 0.75rem; border: none; }
-    .text-muted { color: var(--color-muted); }
-    .badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); }
-  `],
+  styles: [
+    `
+      .space-y-4 > * + * { margin-top: 16px; }
+      .flex { display: flex; }
+      .items-center { align-items: center; }
+      .justify-between { justify-content: space-between; }
+      .gap-3 { gap: 12px; }
+      .mb-3 { margin-bottom: 12px; }
+      .mt-3 { margin-top: 12px; }
+    `,
+  ],
 })
 export class CreditsComponent implements OnInit {
   private api = inject(ApiService);
   items = signal<any[]>([]);
+  showForm = signal(false);
   format = formatMoney;
 
   form = {
@@ -63,13 +121,26 @@ export class CreditsComponent implements OnInit {
     monthlyPayment: null as number | null,
   };
 
-  ngOnInit(): void { this.load(); }
-  load(): void { this.api.get<any[]>('/credits').subscribe((r) => this.items.set(r)); }
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.api.get<any[]>('/credits').subscribe((r) => this.items.set(r));
+  }
 
   progress(c: any): number {
     const total = Number(c.totalAmount);
     const rem = Number(c.remainingDebt);
     return total > 0 ? Math.round(((total - rem) / total) * 100) : 0;
+  }
+
+  statusClass(status: string): Record<string, boolean> {
+    return {
+      'premium-chip-success': status === 'PAID',
+      'premium-chip-danger': status === 'OVERDUE',
+      'premium-chip-warning': status !== 'PAID' && status !== 'OVERDUE',
+    };
   }
 
   submit(): void {
@@ -78,6 +149,7 @@ export class CreditsComponent implements OnInit {
       this.form.name = '';
       this.form.totalAmount = null;
       this.form.monthlyPayment = null;
+      this.showForm.set(false);
       this.load();
     });
   }
