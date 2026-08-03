@@ -37,8 +37,8 @@ export class TelegramBotController {
       const name = message.from?.first_name ?? 'Bobur';
       await this.telegram.sendMessageWithWebApp(
         chatId,
-        `Salom ${name} 👋\n\nBudget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\nPastdagi tugmani bosing va o'z raqamingizni ulashing.`,
-        '💳 Ilovani ochish',
+        `Salom ${name} 👋\n\nBudget Control — shaxsiy moliyaviy boshqaruv ilovasi.\n\nDavom etish uchun ro'yxatdan o'ting.`,
+        "Ro'yxatdan o'ting",
         appUrl,
       );
     }

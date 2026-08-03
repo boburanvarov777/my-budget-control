@@ -85,7 +85,7 @@ export class TelegramService {
         body: JSON.stringify({
           menu_button: {
             type: 'web_app',
-            text: 'Budget Control',
+            text: "Ro'yxatdan o'ting",
             web_app: { url: appUrl },
           },
         }),

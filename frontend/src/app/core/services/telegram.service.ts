@@ -29,6 +29,7 @@ interface TelegramWebApp {
   requestPhoneNumber?: (
     callback: (shared: boolean, phone?: string) => void,
   ) => void;
+  requestFullscreen?: () => void;
   openTelegramLink?: (url: string) => void;
   themeParams: Record<string, string>;
   colorScheme: 'light' | 'dark';
@@ -44,9 +45,17 @@ export class TelegramService {
     const tg = this.webApp;
     if (!tg) return;
     tg.ready();
-    tg.expand();
     tg.setHeaderColor('#09090b');
     tg.setBackgroundColor('#09090b');
+  }
+
+  expandApp(): void {
+    const tg = this.webApp;
+    if (!tg) return;
+    tg.expand();
+    if (typeof tg.requestFullscreen === 'function') {
+      tg.requestFullscreen();
+    }
   }
 
   getInitData(): string {

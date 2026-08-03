@@ -5,67 +5,89 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
 import { TelegramService } from '../../core/services/telegram.service';
 
+type AuthPhase = 'welcome' | 'phone' | 'code';
+
 @Component({
   selector: 'app-auth',
   standalone: true,
   imports: [FormsModule],
   template: `
-    <div class="flex min-h-screen items-center justify-center bg-bg px-4">
-      <div class="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-2xl">
-        <div class="mb-6 text-center">
-          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-2xl">
-            🔐
+    <div class="relative min-h-screen bg-bg">
+      @if (phase() === 'welcome') {
+        <div class="modal-overlay">
+          <div class="modal-card">
+            <div class="modal-icon">👋</div>
+            <h2 class="modal-title">Iltimos, ro'yxatdan o'ting</h2>
+            <p class="modal-text">
+              Bu ilova shaxsiy moliyaviy ma'lumotlaringizni himoya qiladi.
+              Davom etish uchun ro'yxatdan o'ting.
+            </p>
+            <button type="button" class="btn-primary w-full" (click)="startRegistration()">
+              Ro'yxatdan o'tish
+            </button>
           </div>
-          <h1 class="text-xl font-semibold">Budget Control</h1>
-          <p class="mt-2 text-sm text-muted">
-            @if (step() === 1) {
-              Faqat o'z Telegram raqamingizni yuboring. Boshqa raqam nusxasi ishlamaydi.
-            } @else {
-              @VerificationCodes kanalidan kodni oling va kiriting.
-            }
-          </p>
         </div>
+      }
 
-        @if (error()) {
-          <div class="error-box mb-4 rounded-xl px-4 py-3 text-sm">{{ error() }}</div>
-        }
+      <div class="flex min-h-screen items-center justify-center px-4" [class.hidden]="phase() === 'welcome'">
+        <div class="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-2xl">
+          <div class="mb-6 text-center">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-2xl">
+              🔐
+            </div>
+            <h1 class="text-xl font-semibold">Ro'yxatdan o'tish</h1>
+            <p class="mt-2 text-sm text-muted">
+              @if (phase() === 'phone') {
+                O'z raqamingizni yuboring. Boshqa raqam nusxasi yoki qo'lda yozish ishlamaydi.
+              } @else {
+                @VerificationCodes kanalidan kodni oling va kiriting.
+              }
+            </p>
+          </div>
 
-        @if (info()) {
-          <div class="info-box mb-4 rounded-xl px-4 py-3 text-sm">{{ info() }}</div>
-        }
+          @if (error()) {
+            <div class="error-box mb-4 rounded-xl px-4 py-3 text-sm">{{ error() }}</div>
+          }
 
-        @if (step() === 1) {
-          <button
-            type="button"
-            class="btn-primary w-full"
-            [disabled]="loading()"
-            (click)="sendPhone()"
-          >
-            {{ loading() ? 'Tekshirilmoqda...' : '📱 Raqamni yuborish' }}
-          </button>
-          <p class="mt-4 text-center text-xs text-muted">
-            Telegram "Raqamni ulashish" oynasi ochiladi — o'z raqamingizni tanlang
-          </p>
-        } @else {
-          <form class="space-y-3" (ngSubmit)="verify()">
-            <input
-              class="field"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              placeholder="6 xonali kod"
-              [(ngModel)]="code"
-              name="code"
-              required
-            />
-            <button type="submit" class="btn-primary w-full" [disabled]="loading()">
-              {{ loading() ? 'Tekshirilmoqda...' : 'Tasdiqlash' }}
+          @if (info()) {
+            <div class="info-box mb-4 rounded-xl px-4 py-3 text-sm">{{ info() }}</div>
+          }
+
+          @if (phase() === 'phone') {
+            <button
+              type="button"
+              class="btn-primary w-full"
+              [disabled]="loading()"
+              (click)="sendPhone()"
+            >
+              {{ loading() ? 'Tekshirilmoqda...' : '📱 Raqamni yuborish' }}
             </button>
-            <button type="button" class="btn-link w-full" (click)="reset()">
-              Qaytadan raqam yuborish
-            </button>
-          </form>
-        }
+            <p class="mt-4 text-center text-xs text-muted">
+              Telegram "Raqamni ulashish" oynasida faqat o'z raqamingizni tanlang
+            </p>
+          }
+
+          @if (phase() === 'code') {
+            <form class="space-y-3" (ngSubmit)="verify()">
+              <input
+                class="field"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="6 xonali kod"
+                [(ngModel)]="code"
+                name="code"
+                required
+              />
+              <button type="submit" class="btn-primary w-full" [disabled]="loading()">
+                {{ loading() ? 'Tekshirilmoqda...' : 'Tasdiqlash' }}
+              </button>
+              <button type="button" class="btn-link w-full" (click)="resetPhone()">
+                Qaytadan raqam yuborish
+              </button>
+            </form>
+          }
+        </div>
       </div>
     </div>
   `,
@@ -76,6 +98,22 @@ import { TelegramService } from '../../core/services/telegram.service';
       .border-border { border-color: var(--color-border); }
       .bg-accent-soft { background: var(--color-accent-soft); }
       .text-muted { color: var(--color-muted); }
+      .hidden { visibility: hidden; pointer-events: none; }
+      .modal-overlay {
+        position: fixed; inset: 0; z-index: 50;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
+        padding: 1rem;
+      }
+      .modal-card {
+        width: 100%; max-width: 22rem;
+        border-radius: 1.5rem; border: 1px solid var(--color-border);
+        background: var(--color-surface); padding: 1.75rem;
+        text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      }
+      .modal-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+      .modal-title { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
+      .modal-text { font-size: 0.875rem; color: var(--color-muted); margin: 0 0 1.25rem; line-height: 1.5; }
       .error-box {
         border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
         background: color-mix(in srgb, var(--color-danger) 10%, transparent);
@@ -93,12 +131,12 @@ import { TelegramService } from '../../core/services/telegram.service';
       }
       .btn-primary {
         border-radius: 12px; background: var(--color-accent); color: white;
-        padding: 0.875rem; border: none; font-weight: 500;
+        padding: 0.875rem; border: none; font-weight: 500; cursor: pointer;
       }
       .btn-primary:disabled { opacity: 0.5; }
       .btn-link {
         background: none; border: none; color: var(--color-muted);
-        font-size: 0.875rem; padding: 0.5rem;
+        font-size: 0.875rem; padding: 0.5rem; cursor: pointer;
       }
     `,
   ],
@@ -108,13 +146,19 @@ export class AuthComponent {
   private telegram = inject(TelegramService);
   private router = inject(Router);
 
-  step = signal(1);
+  phase = signal<AuthPhase>('welcome');
   loading = signal(false);
   error = signal<string | null>(null);
   info = signal<string | null>(null);
   code = '';
   private phone = '';
   private initData = '';
+
+  startRegistration(): void {
+    this.telegram.expandApp();
+    this.phase.set('phone');
+    this.error.set(null);
+  }
 
   async sendPhone(): Promise<void> {
     this.loading.set(true);
@@ -134,7 +178,7 @@ export class AuthComponent {
       );
 
       this.info.set(res.message);
-      this.step.set(2);
+      this.phase.set('code');
     } catch (e: unknown) {
       this.error.set(this.extractError(e));
     } finally {
@@ -166,8 +210,8 @@ export class AuthComponent {
     }
   }
 
-  reset(): void {
-    this.step.set(1);
+  resetPhone(): void {
+    this.phase.set('phone');
     this.code = '';
     this.error.set(null);
     this.info.set(null);
