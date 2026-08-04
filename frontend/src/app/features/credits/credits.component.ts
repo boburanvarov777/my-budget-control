@@ -24,7 +24,6 @@ interface CreditItem {
   id: string;
   name: string;
   totalAmount: number;
-  downPayment?: number;
   interestRate: number;
   months: number;
   startDate: string;
@@ -53,21 +52,12 @@ interface CreditItem {
     <section class="premium-page">
       @if (showForm()) {
         <button type="button" class="form-back" (click)="closeForm()">
-          <app-icon name="chevron-left" [size]="20" />
-          Nazad
+          <app-icon name="chevron-left" [size]="18" />
+          <span>Orqaga</span>
         </button>
         <h1 class="form-title">Yangi kredit</h1>
 
         <form class="premium-card form-card" (ngSubmit)="submit()">
-          <div class="premium-field">
-            <label class="premium-label">Boshlang'ich to'lov <span class="optional">(ixtiyoriy)</span></label>
-            <app-decimal-input
-              [(ngModel)]="form.downPayment"
-              name="downPayment"
-              placeholder="Masalan: 2 000 000"
-            />
-          </div>
-
           <div class="premium-field">
             <label class="premium-label">Nomi</label>
             <input class="premium-input" placeholder="Masalan: Ipoteka" [(ngModel)]="form.name" name="name" required />
@@ -142,18 +132,30 @@ interface CreditItem {
 
         <div class="space-y-3">
           @for (c of items(); track c.id) {
-            <div class="premium-card premium-card-accent clickable" (click)="openDetail(c)">
+            <div
+              class="premium-card premium-card-accent clickable"
+              [class.card-completed]="isComplete(c)"
+              (click)="openDetail(c)"
+            >
               <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3">
-                  <div class="premium-list-icon active">
-                    <app-icon name="credit-card" [size]="18" />
+                  <div class="premium-list-icon" [class.active]="!isComplete(c)" [class.completed]="isComplete(c)">
+                    @if (isComplete(c)) {
+                      <app-icon name="circle-check" [size]="18" />
+                    } @else {
+                      <app-icon name="credit-card" [size]="18" />
+                    }
                   </div>
                   <div>
                     <p class="premium-body">{{ c.name }}</p>
                     <p class="premium-small premium-muted">Oyiga {{ format(c.monthlyPayment) }}</p>
                   </div>
                 </div>
-                <span class="premium-chip" [ngClass]="statusClass(c.status)">{{ c.status }}</span>
+                @if (isComplete(c)) {
+                  <span class="premium-chip premium-chip-success">Yopilgan</span>
+                } @else {
+                  <span class="premium-chip" [ngClass]="statusClass(c.status)">{{ c.status }}</span>
+                }
               </div>
               <app-month-indicator
                 [total]="c.months"
@@ -187,10 +189,6 @@ interface CreditItem {
             <div class="detail-row">
               <span class="premium-muted">Kredit summasi</span>
               <span>{{ c.totalAmount | amount }} so'm</span>
-            </div>
-            <div class="detail-row">
-              <span class="premium-muted">Boshlang'ich to'lov</span>
-              <span>{{ (c.downPayment ?? 0) | amount }} so'm</span>
             </div>
             <div class="detail-row">
               <span class="premium-muted">Oyiga to'lov</span>
@@ -250,15 +248,24 @@ interface CreditItem {
       .form-back {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        margin-bottom: 12px;
-        padding: 0;
+        gap: 6px;
+        margin-bottom: 16px;
+        padding: 8px 0;
         border: none;
         background: none;
-        color: var(--color-gold);
+        color: var(--color-text);
         font-size: 15px;
         font-weight: 500;
         cursor: pointer;
+        transition: color var(--transition);
+      }
+
+      .form-back:hover {
+        color: var(--color-gold);
+      }
+
+      .form-back span {
+        letter-spacing: -0.01em;
       }
 
       .form-title {
@@ -269,11 +276,6 @@ interface CreditItem {
 
       .form-card > * + * { margin-top: 16px; }
       .field-spacer { height: 8px; }
-      .optional {
-        font-weight: 400;
-        color: var(--color-muted);
-        font-size: 13px;
-      }
       .form-actions { margin-top: 8px; }
 
       .modal-backdrop {
@@ -339,7 +341,6 @@ export class CreditsComponent implements OnInit {
   remainingMonths = creditRemainingMonths;
 
   form = {
-    downPayment: null as number | null,
     name: '',
     totalAmount: null as number | null,
     interestRate: null as number | null,
@@ -356,7 +357,6 @@ export class CreditsComponent implements OnInit {
     this.interestManual.set(false);
     this.interestAuto.set(false);
     this.form = {
-      downPayment: null,
       name: '',
       totalAmount: null,
       interestRate: null,
@@ -415,7 +415,6 @@ export class CreditsComponent implements OnInit {
         rows.map((row) => ({
           ...row,
           totalAmount: coerceAmount(row.totalAmount),
-          downPayment: coerceAmount(row.downPayment),
           monthlyPayment: coerceAmount(row.monthlyPayment),
           remainingDebt: coerceAmount(row.remainingDebt),
           interestRate: coerceAmount(row.interestRate),
@@ -433,10 +432,17 @@ export class CreditsComponent implements OnInit {
     };
   }
 
+  isComplete(c: CreditItem): boolean {
+    return (
+      c.status === 'PAID' ||
+      this.paidMonths(c) >= c.months ||
+      coerceAmount(c.remainingDebt) <= 0
+    );
+  }
+
   submit(): void {
     const totalAmount = coerceAmount(this.form.totalAmount);
     const monthlyPayment = coerceAmount(this.form.monthlyPayment);
-    const downPayment = coerceAmount(this.form.downPayment);
     const months = Number(this.form.months);
 
     if (!this.form.name?.trim() || totalAmount <= 0 || monthlyPayment <= 0 || months <= 0) {
@@ -452,7 +458,6 @@ export class CreditsComponent implements OnInit {
       .post('/credits', {
         name: this.form.name.trim(),
         totalAmount: Math.round(totalAmount * 100) / 100,
-        downPayment: Math.round(downPayment * 100) / 100,
         monthlyPayment: Math.round(monthlyPayment * 100) / 100,
         months,
         startDate: this.form.startDate,

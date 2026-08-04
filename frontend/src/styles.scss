@@ -406,6 +406,17 @@ input[type="date"]::-webkit-date-and-time-value {
   background: var(--color-gold-soft);
 }
 
+.premium-card.card-completed {
+  border-color: rgba(46, 204, 113, 0.35);
+  background: rgba(46, 204, 113, 0.06);
+}
+
+.premium-list-icon.completed {
+  color: var(--color-success);
+  border-color: rgba(46, 204, 113, 0.35);
+  background: rgba(46, 204, 113, 0.12);
+}
+
 /* Progress */
 .premium-progress-track {
   height: 4px;

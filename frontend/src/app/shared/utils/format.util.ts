@@ -164,3 +164,23 @@ export function creditRemainingMonths(item: {
 }): number {
   return Math.max(0, item.months - creditPaidMonths(item));
 }
+
+export function addMonthsToDate(dateStr: string, months = 1): string {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Muddatli to'lov ustama foizi (moliyalashtirilgan summaga nisbatan) */
+export function calcInstallmentMarkupPercent(
+  retailPrice: number,
+  downPayment: number,
+  monthlyPayment: number,
+  months: number,
+): number | null {
+  const principal = retailPrice - downPayment;
+  if (principal <= 0 || months <= 0 || monthlyPayment <= 0) return null;
+  const totalInstallmentPaid = monthlyPayment * months;
+  const markup = totalInstallmentPaid - principal;
+  return Math.round((markup / principal) * 10000) / 100;
+}

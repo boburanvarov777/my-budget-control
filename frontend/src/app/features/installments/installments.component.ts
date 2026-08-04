@@ -11,7 +11,7 @@ import { FabComponent } from '../../shared/components/fab/fab.component';
 import { MonthIndicatorComponent } from '../../shared/components/month-indicator/month-indicator.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 import { ToastService } from '../../shared/services/toast.service';
-import { coerceAmount, formatMoney } from '../../shared/utils/format.util';
+import { coerceAmount, calcInstallmentMarkupPercent, formatMoney } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 
 interface InstallmentItem {
@@ -44,21 +44,12 @@ interface InstallmentItem {
     <section class="premium-page">
       @if (showForm()) {
         <button type="button" class="form-back" (click)="closeForm()">
-          <app-icon name="chevron-left" [size]="20" />
-          Nazad
+          <app-icon name="chevron-left" [size]="18" />
+          <span>Orqaga</span>
         </button>
         <h1 class="form-title">Yangi muddatli to'lov</h1>
 
         <form class="premium-card form-card" (ngSubmit)="submit()">
-          <div class="premium-field">
-            <label class="premium-label">Boshlang'ich to'lov <span class="optional">(ixtiyoriy)</span></label>
-            <app-decimal-input
-              [(ngModel)]="form.downPayment"
-              name="downPayment"
-              placeholder="Masalan: 500 000"
-            />
-          </div>
-
           <div class="premium-field">
             <label class="premium-label">Nomi</label>
             <input
@@ -71,15 +62,24 @@ interface InstallmentItem {
           </div>
 
           <div class="premium-field">
-            <label class="premium-label">Jami summa</label>
+            <label class="premium-label">Tan narxi</label>
             <app-decimal-input
               [(ngModel)]="form.totalAmount"
               name="totalAmount"
               placeholder="12 000 000"
+              (ngModelChange)="onPricingChange()"
             />
           </div>
 
-          <div class="field-spacer"></div>
+          <div class="premium-field">
+            <label class="premium-label">Boshlang'ich to'lov <span class="optional">(ixtiyoriy)</span></label>
+            <app-decimal-input
+              [(ngModel)]="form.downPayment"
+              name="downPayment"
+              placeholder="Masalan: 500 000"
+              (ngModelChange)="onPricingChange()"
+            />
+          </div>
 
           <div class="premium-field">
             <label class="premium-label">Oylar soni</label>
@@ -89,6 +89,7 @@ interface InstallmentItem {
               min="1"
               [(ngModel)]="form.totalMonths"
               name="totalMonths"
+              (ngModelChange)="onPricingChange()"
               required
             />
           </div>
@@ -99,6 +100,7 @@ interface InstallmentItem {
               [(ngModel)]="form.monthlyPayment"
               name="monthlyPayment"
               placeholder="1 500 000.50"
+              (ngModelChange)="onPricingChange()"
             />
           </div>
 
@@ -106,6 +108,13 @@ interface InstallmentItem {
             <label class="premium-label">Boshlanish sanasi</label>
             <app-date-input [(ngModel)]="form.startDate" name="startDate" />
           </div>
+
+          @if (markupPercent() != null) {
+            <div class="markup-box">
+              <span class="premium-muted">Ustama (foiz)</span>
+              <span class="markup-value">{{ markupPercent() }}%</span>
+            </div>
+          }
 
           <div class="premium-grid-2 form-actions">
             <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeForm()">
@@ -119,15 +128,26 @@ interface InstallmentItem {
 
         <div class="space-y-3">
           @for (item of items(); track item.id) {
-            <div class="premium-card premium-card-accent clickable" (click)="openDetail(item)">
+            <div
+              class="premium-card premium-card-accent clickable"
+              [class.card-completed]="isComplete(item)"
+              (click)="openDetail(item)"
+            >
               <div class="flex items-center gap-3 mb-3">
-                <div class="premium-list-icon active">
-                  <app-icon name="smartphone" [size]="18" />
+                <div class="premium-list-icon" [class.active]="!isComplete(item)" [class.completed]="isComplete(item)">
+                  @if (isComplete(item)) {
+                    <app-icon name="circle-check" [size]="18" />
+                  } @else {
+                    <app-icon name="smartphone" [size]="18" />
+                  }
                 </div>
                 <div class="flex-1">
                   <p class="premium-body">{{ item.name }}</p>
                   <p class="premium-small premium-muted">Oyiga {{ format(item.monthlyPayment) }}</p>
                 </div>
+                @if (isComplete(item)) {
+                  <span class="premium-chip premium-chip-success">Yopilgan</span>
+                }
               </div>
               <app-month-indicator
                 [total]="item.totalMonths"
@@ -161,7 +181,7 @@ interface InstallmentItem {
 
           <div class="detail-rows">
             <div class="detail-row">
-              <span class="premium-muted">Jami summa</span>
+              <span class="premium-muted">Tan narxi</span>
               <span>{{ item.totalAmount | amount }} so'm</span>
             </div>
             <div class="detail-row">
@@ -172,6 +192,12 @@ interface InstallmentItem {
               <span class="premium-muted">Oyiga to'lov</span>
               <span>{{ item.monthlyPayment | amount }} so'm</span>
             </div>
+            @if (itemMarkup(item) != null) {
+              <div class="detail-row">
+                <span class="premium-muted">Ustama (foiz)</span>
+                <span>{{ itemMarkup(item) }}%</span>
+              </div>
+            }
             <div class="detail-row">
               <span class="premium-muted">To'langan oylar</span>
               <span class="text-success">{{ item.paidMonths }} oy</span>
@@ -212,15 +238,24 @@ interface InstallmentItem {
       .form-back {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        margin-bottom: 12px;
-        padding: 0;
+        gap: 6px;
+        margin-bottom: 16px;
+        padding: 8px 0;
         border: none;
         background: none;
-        color: var(--color-gold);
+        color: var(--color-text);
         font-size: 15px;
         font-weight: 500;
         cursor: pointer;
+        transition: color var(--transition);
+      }
+
+      .form-back:hover {
+        color: var(--color-gold);
+      }
+
+      .form-back span {
+        letter-spacing: -0.01em;
       }
 
       .form-title {
@@ -231,8 +266,6 @@ interface InstallmentItem {
 
       .form-card > * + * { margin-top: 16px; }
 
-      .field-spacer { height: 8px; }
-
       .optional {
         font-weight: 400;
         color: var(--color-muted);
@@ -240,6 +273,22 @@ interface InstallmentItem {
       }
 
       .form-actions { margin-top: 8px; }
+
+      .markup-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        background: var(--color-gold-soft);
+      }
+
+      .markup-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--color-gold);
+      }
 
       .modal-backdrop {
         position: fixed;
@@ -295,6 +344,7 @@ export class InstallmentsComponent implements OnInit {
   items = signal<InstallmentItem[]>([]);
   showForm = signal(false);
   detailItem = signal<InstallmentItem | null>(null);
+  markupPercent = signal<number | null>(null);
   format = formatMoney;
 
   form = {
@@ -319,6 +369,7 @@ export class InstallmentsComponent implements OnInit {
       totalMonths: 6,
       startDate: new Date().toISOString().slice(0, 10),
     };
+    this.markupPercent.set(null);
     this.showForm.set(true);
   }
 
@@ -336,6 +387,30 @@ export class InstallmentsComponent implements OnInit {
 
   remainingMonths(item: InstallmentItem): number {
     return Math.max(0, item.totalMonths - item.paidMonths);
+  }
+
+  isComplete(item: InstallmentItem): boolean {
+    return item.paidMonths >= item.totalMonths;
+  }
+
+  onPricingChange(): void {
+    this.markupPercent.set(
+      calcInstallmentMarkupPercent(
+        coerceAmount(this.form.totalAmount),
+        coerceAmount(this.form.downPayment),
+        coerceAmount(this.form.monthlyPayment),
+        Number(this.form.totalMonths),
+      ),
+    );
+  }
+
+  itemMarkup(item: InstallmentItem): number | null {
+    return calcInstallmentMarkupPercent(
+      item.totalAmount,
+      item.downPayment ?? 0,
+      item.monthlyPayment,
+      item.totalMonths,
+    );
   }
 
   load(): void {

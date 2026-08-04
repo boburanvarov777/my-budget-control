@@ -1,90 +1,355 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
-import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { DecimalInputComponent } from '../../shared/components/decimal-input/decimal-input.component';
 import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
-import { formatMoney, daysUntil, coerceAmount } from '../../shared/utils/format.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { FabComponent } from '../../shared/components/fab/fab.component';
+import { AmountPipe } from '../../shared/pipes/money.pipe';
+import { ToastService } from '../../shared/services/toast.service';
+import { addMonthsToDate, coerceAmount, daysUntil, formatMoney } from '../../shared/utils/format.util';
+import { extractApiError } from '../../shared/utils/http-error.util';
+
+interface MicroLoanItem {
+  id: string;
+  provider: string;
+  amount: number;
+  takenDate: string;
+  dueDate: string;
+  isPaid: boolean;
+}
 
 @Component({
   selector: 'app-micro-loans',
   standalone: true,
-  imports: [FormsModule, DatePipe, CurrencyInputComponent, DateInputComponent],
+  imports: [
+    FormsModule,
+    DatePipe,
+    NgClass,
+    PageHeaderComponent,
+    FabComponent,
+    IconComponent,
+    DecimalInputComponent,
+    DateInputComponent,
+    AmountPipe,
+  ],
   template: `
-    <section class="space-y-4">
-      <h1 class="text-xl font-semibold">Mikroqarz</h1>
+    <section class="premium-page">
+      @if (showForm()) {
+        <button type="button" class="form-back" (click)="closeForm()">
+          <app-icon name="chevron-left" [size]="18" />
+          <span>Orqaga</span>
+        </button>
+        <h1 class="form-title">Yangi mikroqarz</h1>
 
-      <form class="card space-y-3" (ngSubmit)="submit()">
-        <select class="field" [(ngModel)]="form.provider" name="provider">
-          @for (p of providers; track p) {
-            <option [value]="p">{{ p }}</option>
-          }
-        </select>
-        <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="Summa" />
-        <app-date-input [(ngModel)]="form.takenDate" name="takenDate" />
-        <app-date-input [(ngModel)]="form.dueDate" name="dueDate" />
-        <button type="submit" class="btn-primary">Qo'shish</button>
-      </form>
-
-      @for (loan of items(); track loan.id) {
-        <div class="card">
-          <div class="flex justify-between">
-            <div>
-              <p class="font-medium">{{ loan.provider }}</p>
-              <p class="text-danger font-semibold">{{ format(loan.amount) }}</p>
-            </div>
-            <span class="badge" [class.urgent]="daysLeft(loan.dueDate) <= 1">
-              {{ urgency(loan.dueDate) }}
-            </span>
+        <form class="premium-card form-card" (ngSubmit)="submit()">
+          <div class="premium-field">
+            <label class="premium-label">Qayerdan olindi</label>
+            <select class="premium-select" [(ngModel)]="form.provider" name="provider">
+              @for (p of providers; track p.value) {
+                <option [value]="p.value">{{ p.label }}</option>
+              }
+            </select>
           </div>
-          <p class="mt-2 text-xs text-muted">Qaytarish: {{ loan.dueDate | date: 'd MMM yyyy' }}</p>
-          <button class="mt-3 text-sm text-success" (click)="markPaid(loan.id)">To'landi</button>
+
+          <div class="premium-field">
+            <label class="premium-label">Summa</label>
+            <app-decimal-input [(ngModel)]="form.amount" name="amount" placeholder="500 000" />
+          </div>
+
+          <div class="premium-field">
+            <label class="premium-label">Olingan sana</label>
+            <app-date-input [(ngModel)]="form.takenDate" name="takenDate" />
+            <p class="field-hint">Qaytarish sanasi avtomatik 1 oy keyin belgilanadi</p>
+          </div>
+
+          <div class="premium-grid-2 form-actions">
+            <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeForm()">
+              Bekor
+            </button>
+            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">Saqlash</button>
+          </div>
+        </form>
+      } @else {
+        <app-page-header title="Mikroqarz" subtitle="Uzum, Alif va boshqa xizmatlar" />
+
+        <div class="space-y-3">
+          @for (loan of items(); track loan.id) {
+            <div
+              class="premium-card premium-card-accent clickable"
+              [class.card-completed]="loan.isPaid"
+              (click)="openDetail(loan)"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="premium-list-icon" [class.active]="!loan.isPaid" [class.completed]="loan.isPaid">
+                    @if (loan.isPaid) {
+                      <app-icon name="circle-check" [size]="18" />
+                    } @else {
+                      <app-icon name="wallet" [size]="18" />
+                    }
+                  </div>
+                  <div>
+                    <p class="premium-body">{{ providerLabel(loan.provider) }}</p>
+                    <p class="amount-md" [class.text-success]="loan.isPaid" [class.text-danger]="!loan.isPaid">
+                      {{ loan.amount | amount }} so'm
+                    </p>
+                  </div>
+                </div>
+                @if (!loan.isPaid) {
+                  <span class="premium-chip" [ngClass]="urgencyClass(loan.dueDate)">
+                    {{ urgency(loan.dueDate) }}
+                  </span>
+                } @else {
+                  <span class="premium-chip premium-chip-success">Yopilgan</span>
+                }
+              </div>
+            </div>
+          } @empty {
+            <div class="premium-card premium-muted premium-small">Mikroqarzlar yo'q. + tugmasini bosing.</div>
+          }
         </div>
       }
     </section>
+
+    @if (!showForm()) {
+      <app-fab (clicked)="openForm()" />
+    }
+
+    @if (detailItem(); as loan) {
+      <div class="modal-backdrop" (click)="closeDetail()">
+        <div class="detail-modal" (click)="$event.stopPropagation()">
+          <h2 class="premium-section-title">{{ providerLabel(loan.provider) }}</h2>
+          <p class="amount-xl" [class.text-success]="loan.isPaid" [class.text-danger]="!loan.isPaid">
+            {{ loan.amount | amount }} so'm
+          </p>
+
+          <div class="detail-rows">
+            <div class="detail-row">
+              <span class="premium-muted">Olingan sana</span>
+              <span>{{ loan.takenDate | date: 'd MMMM yyyy' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="premium-muted">Qaytarish sanasi</span>
+              <span>{{ loan.dueDate | date: 'd MMMM yyyy' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="premium-muted">Holat</span>
+              <span [class.text-success]="loan.isPaid">{{ loan.isPaid ? 'Yopilgan' : urgency(loan.dueDate) }}</span>
+            </div>
+          </div>
+
+          @if (!loan.isPaid) {
+            <button type="button" class="premium-btn premium-btn-primary premium-btn-block" (click)="markPaid(loan.id)">
+              To'landi deb belgilash
+            </button>
+          }
+
+          <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeDetail()">
+            Yopish
+          </button>
+        </div>
+      </div>
+    }
   `,
-  styles: [`
-    .card { border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-surface-2); padding: 1rem; }
-    .field { width: 100%; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); padding: 0.75rem; }
-    .btn-primary { width: 100%; border-radius: 12px; background: var(--color-accent); color: white; padding: 0.75rem; border: none; }
-    .text-muted { color: var(--color-muted); }
-    .text-danger { color: var(--color-danger); }
-    .text-success { color: var(--color-success); }
-    .badge { font-size: 11px; padding: 4px 10px; border-radius: 999px; background: var(--color-warning); color: #000; font-weight: 600; }
-    .badge.urgent { background: var(--color-danger); color: #fff; }
-  `],
+  styles: [
+    `
+      .space-y-3 > * + * { margin-top: 12px; }
+      .flex { display: flex; }
+      .items-center { align-items: center; }
+      .justify-between { justify-content: space-between; }
+      .gap-3 { gap: 12px; }
+      .clickable { cursor: pointer; }
+
+      .form-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 16px;
+        padding: 8px 0;
+        border: none;
+        background: none;
+        color: var(--color-text);
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      .form-back:hover { color: var(--color-gold); }
+
+      .form-title { margin: 0 0 16px; font-size: 22px; font-weight: 600; }
+      .form-card > * + * { margin-top: 16px; }
+      .form-actions { margin-top: 8px; }
+
+      .field-hint {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: var(--color-muted);
+      }
+
+      .amount-md { font-size: 18px; font-weight: 600; }
+      .amount-xl { font-size: 32px; font-weight: 600; }
+      .text-success { color: var(--color-success); }
+      .text-danger { color: var(--color-danger); }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.72);
+      }
+
+      .detail-modal {
+        width: 100%;
+        max-width: 32rem;
+        padding: 24px;
+        border-radius: var(--radius-card);
+        border: 1px solid var(--color-border);
+        background: var(--color-card);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: calc(80px + env(safe-area-inset-bottom));
+      }
+
+      .detail-rows { display: flex; flex-direction: column; gap: 12px; }
+
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 15px;
+      }
+
+      .detail-row span:last-child {
+        text-align: right;
+        max-width: 58%;
+      }
+    `,
+  ],
 })
 export class MicroLoansComponent implements OnInit {
   private api = inject(ApiService);
-  items = signal<any[]>([]);
-  format = formatMoney;
-  providers = ['UZUM', 'ALIF', 'YANGI', 'PAYME', 'OTHER'];
+  private toast = inject(ToastService);
+
+  items = signal<MicroLoanItem[]>([]);
+  showForm = signal(false);
+  detailItem = signal<MicroLoanItem | null>(null);
+
+  providers = [
+    { value: 'UZUM', label: 'Uzum Nasiya' },
+    { value: 'ALIF', label: 'Alif Nasiya' },
+    { value: 'YANGI', label: 'Yangi Bank' },
+    { value: 'PAYME', label: 'Payme Nasiya' },
+    { value: 'OTHER', label: 'Boshqa' },
+  ];
 
   form = {
     provider: 'UZUM',
     amount: null as number | null,
     takenDate: new Date().toISOString().slice(0, 10),
-    dueDate: '',
   };
 
-  ngOnInit(): void { this.load(); }
-  load(): void { this.api.get<any[]>('/micro-loans').subscribe((r) => this.items.set(r)); }
+  ngOnInit(): void {
+    this.load();
+  }
 
-  daysLeft(d: string) { return daysUntil(d); }
-  urgency(d: string) {
+  openForm(): void {
+    this.form = {
+      provider: 'UZUM',
+      amount: null,
+      takenDate: new Date().toISOString().slice(0, 10),
+    };
+    this.showForm.set(true);
+  }
+
+  closeForm(): void {
+    this.showForm.set(false);
+  }
+
+  openDetail(loan: MicroLoanItem): void {
+    this.detailItem.set(loan);
+  }
+
+  closeDetail(): void {
+    this.detailItem.set(null);
+  }
+
+  providerLabel(code: string): string {
+    return this.providers.find((p) => p.value === code)?.label ?? code;
+  }
+
+  load(): void {
+    this.api.get<MicroLoanItem[]>('/micro-loans').subscribe((rows) =>
+      this.items.set(
+        rows.map((row) => ({
+          ...row,
+          amount: coerceAmount(row.amount),
+          isPaid: !!row.isPaid,
+        })),
+      ),
+    );
+  }
+
+  daysLeft(d: string): number {
+    return daysUntil(d);
+  }
+
+  urgency(d: string): string {
     const days = daysUntil(d);
-    if (days <= 0) return 'BUGUN';
-    if (days === 1) return 'ERTAGA';
+    if (days < 0) return 'Muddati o\'tgan';
+    if (days === 0) return 'Bugun';
+    if (days === 1) return 'Ertaga';
     return `${days} kun qoldi`;
+  }
+
+  urgencyClass(d: string): Record<string, boolean> {
+    const days = daysUntil(d);
+    return {
+      'premium-chip-danger': days <= 1,
+      'premium-chip-warning': days > 1 && days <= 7,
+    };
   }
 
   submit(): void {
     const amount = coerceAmount(this.form.amount);
-    if (amount <= 0 || !this.form.dueDate) return;
-    this.api.post('/micro-loans', { ...this.form, amount }).subscribe(() => this.load());
+    if (amount <= 0) {
+      this.toast.error('Summani kiriting');
+      return;
+    }
+
+    this.api
+      .post('/micro-loans', {
+        provider: this.form.provider,
+        amount: Math.round(amount * 100) / 100,
+        takenDate: this.form.takenDate,
+        dueDate: addMonthsToDate(this.form.takenDate, 1),
+      })
+      .subscribe({
+        next: () => {
+          this.closeForm();
+          this.load();
+          this.toast.success("Mikroqarz qo'shildi");
+        },
+        error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+      });
   }
 
   markPaid(id: string): void {
-    this.api.patch(`/micro-loans/${id}`, { isPaid: true }).subscribe(() => this.load());
+    this.api.patch(`/micro-loans/${id}`, { isPaid: true }).subscribe({
+      next: () => {
+        this.closeDetail();
+        this.load();
+        this.toast.success('Mikroqarz yopildi');
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+    });
   }
 }

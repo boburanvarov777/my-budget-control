@@ -20,7 +20,8 @@ export class CreateMicroLoanDto {
   takenDate!: string;
 
   @IsDateString()
-  dueDate!: string;
+  @IsOptional()
+  dueDate?: string;
 }
 
 export class UpdateMicroLoanDto {

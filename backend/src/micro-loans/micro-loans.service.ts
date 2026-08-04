@@ -8,19 +8,28 @@ export class MicroLoansService {
 
   findAll(userId: string) {
     return this.prisma.microLoan.findMany({
-      where: { userId, isPaid: false },
-      orderBy: { dueDate: 'asc' },
+      where: { userId },
+      orderBy: [{ isPaid: 'asc' }, { dueDate: 'asc' }],
     });
   }
 
   create(userId: string, dto: CreateMicroLoanDto) {
+    const taken = new Date(dto.takenDate);
+    const due = dto.dueDate
+      ? new Date(dto.dueDate)
+      : (() => {
+          const next = new Date(taken);
+          next.setMonth(next.getMonth() + 1);
+          return next;
+        })();
+
     return this.prisma.microLoan.create({
       data: {
         userId,
         provider: dto.provider,
         amount: dto.amount,
-        takenDate: new Date(dto.takenDate),
-        dueDate: new Date(dto.dueDate),
+        takenDate: taken,
+        dueDate: due,
       },
     });
   }
