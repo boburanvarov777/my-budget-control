@@ -145,7 +145,7 @@ export class AuthComponent implements OnInit {
       if (!initData) throw new Error('Telegram Mini App ichida oching');
 
       await this.auth.beginRegistration(initData);
-      this.telegram.closeApp();
+      this.telegram.openBotChat();
     } catch (e: unknown) {
       this.phase.set('welcome');
       this.loading.set(false);

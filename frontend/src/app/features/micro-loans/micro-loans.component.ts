@@ -2,12 +2,14 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney, daysUntil } from '../../shared/utils/format.util';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
+import { formatMoney, daysUntil, coerceAmount } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-micro-loans',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent, DateInputComponent],
   template: `
     <section class="space-y-4">
       <h1 class="text-xl font-semibold">Mikroqarz</h1>
@@ -18,9 +20,9 @@ import { formatMoney, daysUntil } from '../../shared/utils/format.util';
             <option [value]="p">{{ p }}</option>
           }
         </select>
-        <input class="field" type="number" placeholder="Summa" [(ngModel)]="form.amount" name="amount" required />
-        <input class="field" type="date" [(ngModel)]="form.takenDate" name="takenDate" required />
-        <input class="field" type="date" [(ngModel)]="form.dueDate" name="dueDate" required />
+        <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="Summa" />
+        <app-date-input [(ngModel)]="form.takenDate" name="takenDate" />
+        <app-date-input [(ngModel)]="form.dueDate" name="dueDate" />
         <button type="submit" class="btn-primary">Qo'shish</button>
       </form>
 
@@ -77,8 +79,9 @@ export class MicroLoansComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.form.amount || !this.form.dueDate) return;
-    this.api.post('/micro-loans', this.form).subscribe(() => this.load());
+    const amount = coerceAmount(this.form.amount);
+    if (amount <= 0 || !this.form.dueDate) return;
+    this.api.post('/micro-loans', { ...this.form, amount }).subscribe(() => this.load());
   }
 
   markPaid(id: string): void {

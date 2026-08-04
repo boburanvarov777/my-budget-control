@@ -2,12 +2,13 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney } from '../../shared/utils/format.util';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { formatMoney, coerceAmount } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-savings',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent],
   template: `
     <section class="space-y-4">
       <div class="card">
@@ -16,7 +17,7 @@ import { formatMoney } from '../../shared/utils/format.util';
       </div>
 
       <form class="card space-y-3" (ngSubmit)="submit()">
-        <input class="field" type="number" placeholder="Summa" [(ngModel)]="form.amount" name="amount" required />
+        <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="Summa" />
         <input class="field" placeholder="Nomi" [(ngModel)]="form.name" name="name" />
         <input class="field" type="text" placeholder="Izoh" [(ngModel)]="form.note" name="note" />
         <button type="submit" class="btn-primary">Qo'shish</button>
@@ -60,8 +61,9 @@ export class SavingsComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.form.amount) return;
-    this.api.post('/savings', this.form).subscribe(() => {
+    const amount = coerceAmount(this.form.amount);
+    if (amount <= 0) return;
+    this.api.post('/savings', { ...this.form, amount }).subscribe(() => {
       this.form.amount = null;
       this.load();
     });

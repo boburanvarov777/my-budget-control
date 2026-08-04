@@ -1,22 +1,23 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
-import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { formatMoney, currentMonthYear, coerceAmount } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-budget',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CurrencyInputComponent],
   template: `
     <section class="space-y-4">
       <h1 class="text-xl font-semibold">Budget Planner</h1>
 
       <form class="card space-y-3" (ngSubmit)="calculate()">
-        <input class="field" type="number" placeholder="Oylik daromad" [(ngModel)]="monthlyIncome" name="income" required />
+        <app-currency-input [(ngModel)]="monthlyIncome" name="income" placeholder="Oylik daromad" />
         @for (item of mandatory; track $index) {
           <div class="flex gap-2">
             <input class="field" placeholder="Nomi" [(ngModel)]="item.name" [name]="'n' + $index" />
-            <input class="field" type="number" placeholder="Summa" [(ngModel)]="item.amount" [name]="'a' + $index" />
+            <app-currency-input [(ngModel)]="item.amount" [name]="'a' + $index" placeholder="Summa" />
           </div>
         }
         <button type="button" class="text-sm text-accent" (click)="addRow()">+ Qator qo'shish</button>
@@ -51,8 +52,8 @@ import { formatMoney, currentMonthYear } from '../../shared/utils/format.util';
 export class BudgetComponent implements OnInit {
   private api = inject(ApiService);
   format = formatMoney;
-  monthlyIncome = 25000000;
-  mandatory = [
+  monthlyIncome = 25000000 as number | null;
+  mandatory: { name: string; amount: number | null }[] = [
     { name: 'Kredit', amount: 1600000 },
     { name: 'Telefon', amount: 3000000 },
     { name: 'Gap', amount: 1000000 },
@@ -74,12 +75,15 @@ export class BudgetComponent implements OnInit {
 
   calculate(): void {
     const { month, year } = currentMonthYear();
+    const income = coerceAmount(this.monthlyIncome);
     this.api
       .post('/budget', {
         month,
         year,
-        monthlyIncome: this.monthlyIncome,
-        mandatoryExpenses: this.mandatory.filter((m) => m.name && m.amount),
+        monthlyIncome: income,
+        mandatoryExpenses: this.mandatory
+          .filter((m) => m.name && coerceAmount(m.amount) > 0)
+          .map((m) => ({ name: m.name, amount: coerceAmount(m.amount) })),
       })
       .subscribe((r) => this.result.set(r));
   }

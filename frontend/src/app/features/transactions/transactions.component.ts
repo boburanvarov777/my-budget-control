@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -12,6 +12,9 @@ import { ToastService } from '../../shared/services/toast.service';
 import { coerceAmount, currentMonthYear } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
+import { TransactionDraftService } from '../../shared/services/transaction-draft.service';
+import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 type Tab = 'income' | 'expense';
 
@@ -45,11 +48,12 @@ interface CategoryItem {
   imports: [
     FormsModule,
     DatePipe,
-    RouterLink,
     PageHeaderComponent,
     FabComponent,
     IconComponent,
     CurrencyInputComponent,
+    DateInputComponent,
+    AmountPipe,
   ],
   template: `
     <section class="premium-page">
@@ -95,7 +99,7 @@ interface CategoryItem {
           <div class="premium-field">
             <div class="label-row">
               <label class="premium-label">Kategoriya</label>
-              <a routerLink="/categories" class="link-btn">Boshqarish</a>
+              <button type="button" class="link-btn" (click)="goToCategories()">Boshqarish</button>
             </div>
             <select
               class="premium-select"
@@ -116,12 +120,10 @@ interface CategoryItem {
 
           <div class="premium-field">
             <label class="premium-label">Sana</label>
-            <input
-              type="date"
-              class="premium-input"
-              [class.premium-input-error]="!!errors()['date']"
+            <app-date-input
               [(ngModel)]="form.date"
               name="date"
+              [invalid]="!!errors()['date']"
             />
             @if (errors()['date']) {
               <p class="field-error">{{ errors()['date'] }}</p>
@@ -157,7 +159,7 @@ interface CategoryItem {
       <div class="space-y-3">
         @if (tab() === 'income') {
           @for (item of incomes(); track item.id) {
-            <div class="premium-list-item">
+            <div class="premium-list-item clickable" (click)="openDetail(item, 'income')">
               <div class="flex items-center gap-3">
                 <div class="premium-list-icon active">
                   <app-icon name="trending-up" [size]="18" />
@@ -169,7 +171,7 @@ interface CategoryItem {
                   </p>
                 </div>
               </div>
-              <button type="button" class="icon-btn" (click)="removeIncome(item)">
+              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); removeIncome(item)">
                 <app-icon name="trash-2" [size]="16" />
               </button>
             </div>
@@ -178,7 +180,7 @@ interface CategoryItem {
           }
         } @else {
           @for (item of expenses(); track item.id) {
-            <div class="premium-list-item">
+            <div class="premium-list-item clickable" (click)="openDetail(item, 'expense')">
               <div class="flex items-center gap-3">
                 <div class="premium-list-icon">
                   <app-icon [name]="expenseIcon(item.category)" [size]="18" />
@@ -190,7 +192,7 @@ interface CategoryItem {
                   </p>
                 </div>
               </div>
-              <button type="button" class="icon-btn" (click)="removeExpense(item)">
+              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); removeExpense(item)">
                 <app-icon name="trash-2" [size]="16" />
               </button>
             </div>
@@ -200,6 +202,36 @@ interface CategoryItem {
         }
       </div>
     </section>
+
+    @if (detailItem(); as item) {
+      <div class="modal-backdrop" (click)="closeDetail()">
+        <div class="detail-modal" (click)="$event.stopPropagation()">
+          <h2 class="premium-section-title">
+            {{ detailType() === 'income' ? 'Daromad' : 'Xarajat' }}
+          </h2>
+          <p class="amount-xl" [class.text-success]="detailType() === 'income'" [class.text-danger]="detailType() === 'expense'">
+            {{ item.amount | amount }} so'm
+          </p>
+          <div class="detail-rows">
+            <div class="detail-row">
+              <span class="premium-muted">Kategoriya</span>
+              <span>{{ categoryLabel(item.category) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="premium-muted">Sana</span>
+              <span>{{ item.date | date: 'd MMMM yyyy' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="premium-muted">Izoh</span>
+              <span>{{ item.note?.trim() || '—' }}</span>
+            </div>
+          </div>
+          <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeDetail()">
+            Yopish
+          </button>
+        </div>
+      </div>
+    }
 
     <app-fab (clicked)="openForm()" />
   `,
@@ -221,6 +253,10 @@ interface CategoryItem {
       .label-row .premium-label { margin-bottom: 0; }
 
       .link-btn {
+        border: none;
+        background: none;
+        padding: 0;
+        cursor: pointer;
         color: var(--color-gold);
         font-size: 14px;
         text-decoration: none;
@@ -240,6 +276,51 @@ interface CategoryItem {
       }
 
       .icon-btn:hover { color: var(--color-danger); }
+
+      .clickable { cursor: pointer; }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.72);
+      }
+
+      .detail-modal {
+        width: 100%;
+        max-width: 32rem;
+        padding: 24px;
+        border-radius: var(--radius-card);
+        border: 1px solid var(--color-border);
+        background: var(--color-card);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: calc(80px + env(safe-area-inset-bottom));
+      }
+
+      .detail-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 15px;
+      }
+
+      .detail-row span:last-child {
+        text-align: right;
+        max-width: 60%;
+        word-break: break-word;
+      }
     `,
   ],
 })
@@ -247,12 +328,16 @@ export class TransactionsComponent implements OnInit {
   private api = inject(ApiService);
   private confirm = inject(ConfirmService);
   private toast = inject(ToastService);
+  private router = inject(Router);
+  private draftService = inject(TransactionDraftService);
 
   tab = signal<Tab>('expense');
   showForm = signal(false);
   saving = signal(false);
   submitError = signal('');
   errors = signal<Record<string, string>>({});
+  detailItem = signal<IncomeItem | ExpenseItem | null>(null);
+  detailType = signal<Tab>('expense');
 
   incomes = signal<IncomeItem[]>([]);
   expenses = signal<ExpenseItem[]>([]);
@@ -273,6 +358,41 @@ export class TransactionsComponent implements OnInit {
   ngOnInit(): void {
     this.loadCategories();
     this.load();
+    this.restoreDraft();
+  }
+
+  goToCategories(): void {
+    this.draftService.save({
+      tab: this.tab(),
+      showForm: this.showForm(),
+      form: {
+        amount: this.form.amount,
+        category: this.form.category,
+        date: this.form.date,
+        note: this.form.note,
+      },
+    });
+    this.router.navigate(['/categories'], {
+      queryParams: { from: 'transactions', tab: this.tab() },
+    });
+  }
+
+  openDetail(item: IncomeItem | ExpenseItem, type: Tab): void {
+    this.detailItem.set(item);
+    this.detailType.set(type);
+  }
+
+  closeDetail(): void {
+    this.detailItem.set(null);
+  }
+
+  private restoreDraft(): void {
+    const draft = this.draftService.consume();
+    if (!draft) return;
+    this.tab.set(draft.tab);
+    this.form = { ...draft.form };
+    this.showForm.set(draft.showForm);
+    this.loadCategories();
   }
 
   switchTab(next: Tab): void {

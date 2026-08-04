@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
@@ -47,6 +48,12 @@ interface CategoryItem {
           Chiqim
         </button>
       </div>
+
+      @if (returnToTransactions()) {
+        <button type="button" class="premium-btn premium-btn-secondary premium-btn-block back-btn" (click)="goBackToTransactions()">
+          Kirim-chiqimga qaytish
+        </button>
+      }
 
       <div class="premium-card add-card">
         <label class="premium-label">Yangi kategoriya</label>
@@ -164,6 +171,10 @@ interface CategoryItem {
       .empty-hint {
         padding: 14px 16px;
       }
+
+      .back-btn {
+        margin-bottom: 16px;
+      }
     `,
   ],
 })
@@ -171,8 +182,11 @@ export class CategoriesComponent implements OnInit {
   private api = inject(ApiService);
   private confirm = inject(ConfirmService);
   private toast = inject(ToastService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   tab = signal<CategoryTab>('expense');
+  returnToTransactions = signal(false);
   incomeCategories = signal<CategoryItem[]>([]);
   expenseCategories = signal<CategoryItem[]>([]);
   newLabel = '';
@@ -186,7 +200,21 @@ export class CategoriesComponent implements OnInit {
   systemList = computed(() => this.activeList().filter((c) => !c.id));
 
   ngOnInit(): void {
+    this.route.queryParamMap.subscribe((params) => {
+      const from = params.get('from');
+      const tab = params.get('tab');
+      if (from === 'transactions' && (tab === 'income' || tab === 'expense')) {
+        this.returnToTransactions.set(true);
+        this.tab.set(tab);
+      } else {
+        this.returnToTransactions.set(false);
+      }
+    });
     this.loadAll();
+  }
+
+  goBackToTransactions(): void {
+    this.router.navigate(['/transactions']);
   }
 
   optionLabel(c: CategoryItem): string {
@@ -232,6 +260,9 @@ export class CategoriesComponent implements OnInit {
           this.adding.set(false);
           this.loadAll();
           this.toast.success("Kategoriya muvaffaqiyatli qo'shildi");
+          if (this.returnToTransactions()) {
+            this.goBackToTransactions();
+          }
         },
         error: (e: HttpErrorResponse) => {
           this.adding.set(false);

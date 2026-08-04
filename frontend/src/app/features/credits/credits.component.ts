@@ -4,9 +4,11 @@ import { DatePipe, NgClass } from '@angular/common';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
 import { ProgressBarComponent } from '../../shared/components/progress-bar/progress-bar.component';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { FabComponent } from '../../shared/components/fab/fab.component';
-import { formatMoney } from '../../shared/utils/format.util';
+import { formatMoney, coerceAmount } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-credits',
@@ -16,6 +18,8 @@ import { formatMoney } from '../../shared/utils/format.util';
     DatePipe,
     NgClass,
     ProgressBarComponent,
+    CurrencyInputComponent,
+    DateInputComponent,
     PageHeaderComponent,
     FabComponent,
     IconComponent,
@@ -33,7 +37,7 @@ import { formatMoney } from '../../shared/utils/format.util';
           <div class="premium-grid-2">
             <div class="premium-field">
               <label class="premium-label">Jami summa</label>
-              <input class="premium-input" type="number" [(ngModel)]="form.totalAmount" name="totalAmount" required />
+              <app-currency-input [(ngModel)]="form.totalAmount" name="totalAmount" placeholder="Jami summa" />
             </div>
             <div class="premium-field">
               <label class="premium-label">Foiz %</label>
@@ -47,12 +51,12 @@ import { formatMoney } from '../../shared/utils/format.util';
             </div>
             <div class="premium-field">
               <label class="premium-label">Oy to'lov</label>
-              <input class="premium-input" type="number" [(ngModel)]="form.monthlyPayment" name="monthlyPayment" required />
+              <app-currency-input [(ngModel)]="form.monthlyPayment" name="monthlyPayment" placeholder="Oy to'lov" />
             </div>
           </div>
           <div class="premium-field">
             <label class="premium-label">Boshlanish sanasi</label>
-            <input class="premium-input" type="date" [(ngModel)]="form.startDate" name="startDate" required />
+            <app-date-input [(ngModel)]="form.startDate" name="startDate" />
           </div>
           <div class="premium-grid-2">
             <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="showForm.set(false)">Bekor</button>
@@ -144,8 +148,14 @@ export class CreditsComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.form.name || !this.form.totalAmount || !this.form.monthlyPayment) return;
-    this.api.post('/credits', this.form).subscribe(() => {
+    const totalAmount = coerceAmount(this.form.totalAmount);
+    const monthlyPayment = coerceAmount(this.form.monthlyPayment);
+    if (!this.form.name || totalAmount <= 0 || monthlyPayment <= 0) return;
+    this.api.post('/credits', {
+      ...this.form,
+      totalAmount,
+      monthlyPayment,
+    }).subscribe(() => {
       this.form.name = '';
       this.form.totalAmount = null;
       this.form.monthlyPayment = null;

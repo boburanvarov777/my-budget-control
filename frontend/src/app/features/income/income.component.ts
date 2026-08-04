@@ -6,6 +6,7 @@ import { ToastService } from '../../shared/services/toast.service';
 import { currentMonthYear } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 interface Income {
@@ -19,14 +20,14 @@ interface Income {
 @Component({
   selector: 'app-income',
   standalone: true,
-  imports: [FormsModule, DatePipe, CurrencyInputComponent, AmountPipe],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent, DateInputComponent, AmountPipe],
   template: `
     <section class="space-y-4">
       <h1 class="text-xl font-semibold">Daromad</h1>
 
       <form class="space-y-3 rounded-2xl border border-border bg-surface-2 p-4" (ngSubmit)="submit()">
         <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="300 000" />
-        <input type="date" class="field" [(ngModel)]="form.date" name="date" required />
+        <app-date-input [(ngModel)]="form.date" name="date" />
         <select class="field" [(ngModel)]="form.category" name="category">
           @for (c of categories; track c.value) {
             <option [value]="c.value">{{ c.label }}</option>

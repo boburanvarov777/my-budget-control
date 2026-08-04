@@ -3,9 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ApiService } from '../../core/services/api.service';
 import { ProgressBarComponent } from '../../shared/components/progress-bar/progress-bar.component';
+import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { FabComponent } from '../../shared/components/fab/fab.component';
-import { formatMoney } from '../../shared/utils/format.util';
+import { formatMoney, coerceAmount } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-goals',
@@ -13,6 +15,8 @@ import { formatMoney } from '../../shared/utils/format.util';
   imports: [
     FormsModule,
     ProgressBarComponent,
+    CurrencyInputComponent,
+    DateInputComponent,
     PageHeaderComponent,
     FabComponent,
     IconComponent,
@@ -38,21 +42,21 @@ import { formatMoney } from '../../shared/utils/format.util';
           <div class="premium-grid-2">
             <div class="premium-field">
               <label class="premium-label">Maqsad summa</label>
-              <input class="premium-input" type="number" [(ngModel)]="form.targetAmount" name="targetAmount" required />
+              <app-currency-input [(ngModel)]="form.targetAmount" name="targetAmount" placeholder="Maqsad summa" />
             </div>
             <div class="premium-field">
               <label class="premium-label">Yig'ilgan</label>
-              <input class="premium-input" type="number" [(ngModel)]="form.savedAmount" name="savedAmount" />
+              <app-currency-input [(ngModel)]="form.savedAmount" name="savedAmount" placeholder="Yig'ilgan" />
             </div>
           </div>
           <div class="premium-grid-2">
             <div class="premium-field">
               <label class="premium-label">Har oy</label>
-              <input class="premium-input" type="number" [(ngModel)]="form.monthlyAmount" name="monthlyAmount" />
+              <app-currency-input [(ngModel)]="form.monthlyAmount" name="monthlyAmount" placeholder="Har oy" />
             </div>
             <div class="premium-field">
               <label class="premium-label">Muddat</label>
-              <input class="premium-input" type="date" [(ngModel)]="form.targetDate" name="targetDate" />
+              <app-date-input [(ngModel)]="form.targetDate" name="targetDate" />
             </div>
           </div>
           <div class="premium-grid-2">
@@ -150,8 +154,14 @@ export class GoalsComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.form.name || !this.form.targetAmount) return;
-    this.api.post('/goals', this.form).subscribe(() => {
+    const targetAmount = coerceAmount(this.form.targetAmount);
+    if (!this.form.name || targetAmount <= 0) return;
+    this.api.post('/goals', {
+      ...this.form,
+      targetAmount,
+      savedAmount: coerceAmount(this.form.savedAmount),
+      monthlyAmount: coerceAmount(this.form.monthlyAmount),
+    }).subscribe(() => {
       this.form.name = '';
       this.form.targetAmount = null;
       this.showForm.set(false);

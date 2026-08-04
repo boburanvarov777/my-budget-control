@@ -36,6 +36,7 @@ interface TelegramWebApp {
     callback: (shared: boolean, phone?: string) => void,
   ) => void;
   openTelegramLink?: (url: string) => void;
+  openLink?: (url: string) => void;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -99,6 +100,21 @@ export class TelegramService {
     const tg = this.webApp;
     if (!tg) return;
     tg.close();
+  }
+
+  /** Bot chatini ochish — raqam yuborish tugmasi pastda ko'rinadi */
+  openBotChat(botUsername = 'cash_flow_bot'): void {
+    const url = `https://t.me/${botUsername}`;
+    const tg = this.webApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+      return;
+    }
+    if (tg?.openLink) {
+      tg.openLink(url);
+      return;
+    }
+    window.open(url, '_blank');
   }
 
   getInitData(): string {
