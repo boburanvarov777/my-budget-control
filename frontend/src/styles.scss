@@ -124,6 +124,9 @@ button {
   padding: 20px;
   box-shadow: var(--shadow-soft);
   transition: border-color var(--transition);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .premium-card-accent {
@@ -169,6 +172,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .premium-label {
@@ -193,9 +198,18 @@ button {
 
 .premium-textarea {
   height: auto;
-  min-height: 112px;
-  padding: 16px;
-  resize: vertical;
+  min-height: 88px;
+  max-height: 160px;
+  padding: 14px 16px;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .premium-input::placeholder,

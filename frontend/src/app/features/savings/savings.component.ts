@@ -3,12 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
+import { NoteInputComponent } from '../../shared/components/note-input/note-input.component';
 import { formatMoney, coerceAmount } from '../../shared/utils/format.util';
 
 @Component({
   selector: 'app-savings',
   standalone: true,
-  imports: [FormsModule, DatePipe, CurrencyInputComponent],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent, NoteInputComponent],
   template: `
     <section class="space-y-4">
       <div class="card">
@@ -19,7 +20,7 @@ import { formatMoney, coerceAmount } from '../../shared/utils/format.util';
       <form class="card space-y-3" (ngSubmit)="submit()">
         <app-currency-input [(ngModel)]="form.amount" name="amount" placeholder="Summa" />
         <input class="field" placeholder="Nomi" [(ngModel)]="form.name" name="name" />
-        <input class="field" type="text" placeholder="Izoh" [(ngModel)]="form.note" name="note" />
+        <app-note-input [(ngModel)]="form.note" name="note" placeholder="Izoh" />
         <button type="submit" class="btn-primary">Qo'shish</button>
       </form>
 

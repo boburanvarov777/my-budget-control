@@ -13,6 +13,7 @@ import { coerceAmount, currentMonthYear } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
+import { NoteInputComponent } from '../../shared/components/note-input/note-input.component';
 import { TransactionDraftService } from '../../shared/services/transaction-draft.service';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 
@@ -53,6 +54,7 @@ interface CategoryItem {
     IconComponent,
     CurrencyInputComponent,
     DateInputComponent,
+    NoteInputComponent,
     AmountPipe,
   ],
   template: `
@@ -135,13 +137,7 @@ interface CategoryItem {
 
           <div class="premium-field">
             <label class="premium-label">Izoh</label>
-            <input
-              type="text"
-              class="premium-input"
-              placeholder="Ixtiyoriy"
-              [(ngModel)]="form.note"
-              name="note"
-            />
+            <app-note-input [(ngModel)]="form.note" name="note" placeholder="Ixtiyoriy" />
           </div>
 
           @if (submitError()) {
@@ -234,7 +230,7 @@ interface CategoryItem {
               <span class="premium-muted">Sana</span>
               <span>{{ item.date | date: 'd MMMM yyyy' }}</span>
             </div>
-            <div class="detail-row">
+            <div class="detail-row detail-row-note">
               <span class="premium-muted">Izoh</span>
               <span>{{ item.note?.trim() || '—' }}</span>
             </div>
@@ -350,6 +346,11 @@ interface CategoryItem {
         text-align: right;
         max-width: 60%;
         word-break: break-word;
+      }
+
+      .detail-row-note span:last-child {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
     `,
   ],

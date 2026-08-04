@@ -7,6 +7,7 @@ import { currentMonthYear } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 import { CurrencyInputComponent } from '../../shared/components/currency-input/currency-input.component';
 import { DateInputComponent } from '../../shared/components/date-input/date-input.component';
+import { NoteInputComponent } from '../../shared/components/note-input/note-input.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 
 interface Expense {
@@ -20,7 +21,7 @@ interface Expense {
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [FormsModule, DatePipe, CurrencyInputComponent, DateInputComponent, AmountPipe],
+  imports: [FormsModule, DatePipe, CurrencyInputComponent, DateInputComponent, NoteInputComponent, AmountPipe],
   template: `
     <section class="space-y-4">
       <h1 class="text-xl font-semibold">Xarajatlar</h1>
@@ -33,7 +34,7 @@ interface Expense {
           }
         </select>
         <app-date-input [(ngModel)]="form.date" name="date" />
-        <input type="text" class="field" placeholder="Izoh" [(ngModel)]="form.note" name="note" />
+        <app-note-input [(ngModel)]="form.note" name="note" placeholder="Izoh" />
         <button type="submit" class="btn-primary">Qo'shish</button>
       </form>
 
