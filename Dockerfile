@@ -3,7 +3,8 @@ WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
-RUN npx prisma generate && npm run build && test -f dist/main.js
+ARG CACHEBUST=1
+RUN npx prisma generate && npm run build && ls -la dist/main.js
 
 FROM node:22-alpine AS frontend-build
 WORKDIR /app/frontend
