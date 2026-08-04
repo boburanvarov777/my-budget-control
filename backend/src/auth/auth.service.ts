@@ -5,7 +5,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { BeginRegistrationDto } from './dto/auth-telegram.dto';
+import { BeginRegistrationDto, CompleteRegistrationDto } from './dto/auth-telegram.dto';
 import {
   validateTelegramInitData,
   phonesMatch,
@@ -127,38 +127,6 @@ export class AuthService {
       return;
     }
 
-    const { ownerPhone, ownerUsername } = this.getOwnerConfig();
-    if (
-      ownerPhone &&
-      ownerUsername &&
-      phonesMatch(phone, ownerPhone) &&
-      !usernamesMatch(username, ownerUsername)
-    ) {
-      await this.telegram.removeKeyboard(fromTelegramId);
-      await this.telegram.sendMessage(
-        fromTelegramId,
-        "❌ Sen bu foydalanuvchi emassan.\n\nO'zingning raqamingizni yubor.",
-      );
-      return;
-    }
-
-    const normalizedPhone = normalizePhone(phone);
-
-    const phoneTaken = await this.prisma.user.findFirst({
-      where: {
-        phone: normalizedPhone,
-        telegramId: { not: tgId },
-      },
-    });
-    if (phoneTaken) {
-      await this.telegram.removeKeyboard(fromTelegramId);
-      await this.telegram.sendMessage(
-        fromTelegramId,
-        "❌ Bu raqam boshqa akkauntga bog'langan.\n\nO'zingning raqamingizni yuboring.",
-      );
-      return;
-    }
-
     const existing = await this.prisma.user.findUnique({
       where: { telegramId: tgId },
     });
@@ -173,23 +141,19 @@ export class AuthService {
       return;
     }
 
+    const result = await this.registerUser({
+      telegramId: tgId,
+      username,
+      phone,
+      firstName,
+    });
+
     await this.telegram.removeKeyboard(fromTelegramId);
 
-    const isOwner =
-      !!ownerPhone &&
-      !!ownerUsername &&
-      phonesMatch(phone, ownerPhone) &&
-      usernamesMatch(username, ownerUsername);
-
-    await this.prisma.user.create({
-      data: {
-        telegramId: tgId,
-        username: username ?? null,
-        phone: normalizedPhone,
-        firstName: firstName ?? null,
-        role: isOwner ? UserRole.ADMIN : UserRole.USER,
-      },
-    });
+    if (!result.ok) {
+      await this.telegram.sendMessage(fromTelegramId, result.message);
+      return;
+    }
 
     await this.telegram.sendMessageWithWebApp(
       fromTelegramId,
@@ -197,6 +161,82 @@ export class AuthService {
       'Ilovani oching',
       this.dashboardUrl(),
     );
+  }
+
+  async completeRegistration(dto: CompleteRegistrationDto) {
+    const tgUser = this.validateInitData(dto.initData);
+    const tgId = String(tgUser.id);
+
+    const existing = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
+    if (existing) {
+      return this.miniAppLogin(dto.initData);
+    }
+
+    const result = await this.registerUser({
+      telegramId: tgId,
+      username: tgUser.username,
+      phone: dto.phone,
+      firstName: tgUser.first_name,
+    });
+
+    if (!result.ok) {
+      throw new UnauthorizedException(result.message);
+    }
+
+    return this.miniAppLogin(dto.initData);
+  }
+
+  private async registerUser(params: {
+    telegramId: string;
+    username?: string | null;
+    phone: string;
+    firstName?: string | null;
+  }): Promise<{ ok: true } | { ok: false; message: string }> {
+    const { ownerPhone, ownerUsername } = this.getOwnerConfig();
+    if (
+      ownerPhone &&
+      ownerUsername &&
+      phonesMatch(params.phone, ownerPhone) &&
+      !usernamesMatch(params.username, ownerUsername)
+    ) {
+      return {
+        ok: false,
+        message: "❌ Sen bu foydalanuvchi emassan.\n\nO'zingning raqamingizni yubor.",
+      };
+    }
+
+    const normalizedPhone = normalizePhone(params.phone);
+
+    const phoneTaken = await this.prisma.user.findFirst({
+      where: {
+        phone: normalizedPhone,
+        telegramId: { not: params.telegramId },
+      },
+    });
+    if (phoneTaken) {
+      return {
+        ok: false,
+        message: "❌ Bu raqam boshqa akkauntga bog'langan.\n\nO'zingning raqamingizni yuboring.",
+      };
+    }
+
+    const isOwner =
+      !!ownerPhone &&
+      !!ownerUsername &&
+      phonesMatch(params.phone, ownerPhone) &&
+      usernamesMatch(params.username, ownerUsername);
+
+    await this.prisma.user.create({
+      data: {
+        telegramId: params.telegramId,
+        username: params.username ?? null,
+        phone: normalizedPhone,
+        firstName: params.firstName ?? null,
+        role: isOwner ? UserRole.ADMIN : UserRole.USER,
+      },
+    });
+
+    return { ok: true };
   }
 
   async handleManualPhoneAttempt(telegramId: number) {
@@ -213,7 +253,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { telegramId } });
     if (!user) {
       throw new UnauthorizedException(
-        "Avval botda /start bosib ro'yxatdan o'ting.",
+        "Avval ro'yxatdan o'ting.",
       );
     }
 

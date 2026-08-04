@@ -11,3 +11,13 @@ export class MiniAppLoginDto {
   @IsNotEmpty()
   initData!: string;
 }
+
+export class CompleteRegistrationDto {
+  @IsString()
+  @IsNotEmpty()
+  initData!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
+}

@@ -1,6 +1,6 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { BeginRegistrationDto, MiniAppLoginDto } from './dto/auth-telegram.dto';
+import { BeginRegistrationDto, CompleteRegistrationDto, MiniAppLoginDto } from './dto/auth-telegram.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -14,5 +14,10 @@ export class AuthController {
   @Post('mini-app-login')
   miniAppLogin(@Body() dto: MiniAppLoginDto) {
     return this.authService.miniAppLogin(dto.initData);
+  }
+
+  @Post('complete-registration')
+  completeRegistration(@Body() dto: CompleteRegistrationDto) {
+    return this.authService.completeRegistration(dto);
   }
 }

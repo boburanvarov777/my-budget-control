@@ -25,8 +25,8 @@ import { TelegramService } from '../../core/services/telegram.service';
             <p class="premium-caption">Budget Control</p>
             <h1 class="premium-title">Shaxsiy moliya</h1>
             <p class="premium-body premium-muted">
-              Premium moliyaviy boshqaruv ilovasi. Ro'yxatdan o'tish uchun
-              @{{ botUsername }} botida /start bosing va o'z raqamingizni yuboring.
+              Ro'yxatdan o'tish uchun pastdagi tugmani bosing va Telegram orqali
+              o'z telefon raqamingizni ulashing.
             </p>
           </div>
 
@@ -36,8 +36,12 @@ import { TelegramService } from '../../core/services/telegram.service';
             [disabled]="loading()"
             (click)="startRegistration()"
           >
-            {{ loading() ? 'Yuklanmoqda...' : '@' + botUsername + " botiga o'tish" }}
+            {{ loading() ? 'Kutilmoqda...' : "Ro'yxatdan o'tish" }}
           </button>
+
+          <p class="field-hint">
+            Raqam faqat Telegram orqali olinadi — qo'lda kiritish mumkin emas.
+          </p>
         </div>
       }
 
@@ -77,7 +81,7 @@ import { TelegramService } from '../../core/services/telegram.service';
         max-width: 22rem;
         display: flex;
         flex-direction: column;
-        gap: 32px;
+        gap: 20px;
         animation: fadeIn 250ms ease;
       }
 
@@ -98,6 +102,14 @@ import { TelegramService } from '../../core/services/telegram.service';
         background: var(--color-gold-soft);
         color: var(--color-gold);
       }
+
+      .field-hint {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-muted);
+        text-align: center;
+        line-height: 1.45;
+      }
     `,
   ],
 })
@@ -108,7 +120,6 @@ export class AuthComponent implements OnInit {
 
   phase = signal<'welcome' | 'loading'>('loading');
   loading = signal(true);
-  botUsername = this.telegram.getBotUsername();
 
   async ngOnInit(): Promise<void> {
     const initData = await this.waitForInitData();
@@ -143,19 +154,19 @@ export class AuthComponent implements OnInit {
 
     try {
       const initData = this.telegram.getInitData();
-      if (!initData) throw new Error('Telegram Mini App ichida oching');
+      if (!initData) throw new Error('Ilovani Telegram ichida oching');
 
-      const { alreadyRegistered } = await this.auth.beginRegistration(initData);
-      if (alreadyRegistered) {
-        await this.auth.miniAppLogin(initData);
-        await this.router.navigateByUrl('/dashboard');
-        return;
-      }
-      this.telegram.openBotChat();
+      const phone = await this.telegram.requestPhone();
+      await this.auth.completeRegistration(initData, phone);
+      await this.router.navigateByUrl('/dashboard');
     } catch (e: unknown) {
       this.phase.set('welcome');
       this.loading.set(false);
-      alert(this.extractError(e));
+
+      const msg = this.extractError(e);
+      if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('bekor')) {
+        alert(msg);
+      }
     }
   }
 
