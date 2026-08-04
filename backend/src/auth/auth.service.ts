@@ -36,6 +36,7 @@ export class AuthService {
     return {
       ownerPhone: this.config.get<string>('ALLOWED_PHONE'),
       ownerUsername: this.config.get<string>('ALLOWED_USERNAME'),
+      ownerTelegramId: this.config.get<string>('ALLOWED_TELEGRAM_ID'),
     };
   }
 
@@ -192,17 +193,20 @@ export class AuthService {
     phone: string;
     firstName?: string | null;
   }): Promise<{ ok: true } | { ok: false; message: string }> {
-    const { ownerPhone, ownerUsername } = this.getOwnerConfig();
-    if (
-      ownerPhone &&
-      ownerUsername &&
-      phonesMatch(params.phone, ownerPhone) &&
-      !usernamesMatch(params.username, ownerUsername)
-    ) {
-      return {
-        ok: false,
-        message: "❌ Sen bu foydalanuvchi emassan.\n\nO'zingning raqamingizni yubor.",
-      };
+    const { ownerPhone, ownerUsername, ownerTelegramId } = this.getOwnerConfig();
+
+    if (ownerPhone && phonesMatch(params.phone, ownerPhone)) {
+      const isOwnerTelegram =
+        !!ownerTelegramId && params.telegramId === ownerTelegramId;
+      const isOwnerUsername =
+        !!ownerUsername && usernamesMatch(params.username, ownerUsername);
+      if (!isOwnerTelegram && !isOwnerUsername) {
+        return {
+          ok: false,
+          message:
+            "❌ Sen bu foydalanuvchi emassan.\n\nO'zingning raqamingizni yubor.",
+        };
+      }
     }
 
     const normalizedPhone = normalizePhone(params.phone);
@@ -222,9 +226,9 @@ export class AuthService {
 
     const isOwner =
       !!ownerPhone &&
-      !!ownerUsername &&
       phonesMatch(params.phone, ownerPhone) &&
-      usernamesMatch(params.username, ownerUsername);
+      ((!!ownerTelegramId && params.telegramId === ownerTelegramId) ||
+        (!!ownerUsername && usernamesMatch(params.username, ownerUsername)));
 
     await this.prisma.user.create({
       data: {

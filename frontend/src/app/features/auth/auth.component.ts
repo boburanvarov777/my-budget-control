@@ -157,7 +157,9 @@ export class AuthComponent implements OnInit {
 
     try {
       const initData = this.telegram.getInitData();
-      if (!initData) throw new Error('Ilovani Telegram ichida oching');
+      if (!initData) {
+        throw new Error('Ilovani Telegram ichida oching');
+      }
 
       const { alreadyRegistered } = await this.auth.beginRegistration(initData);
       if (alreadyRegistered) {
@@ -166,21 +168,34 @@ export class AuthComponent implements OnInit {
         return;
       }
 
-      // Bot chatida "Raqamni yuborish" tugmasi chiqadi — mini app yopiladi
       this.telegram.closeApp();
+      setTimeout(() => {
+        alert(
+          "Chatga qayting va pastdagi 📱 Raqamni yuborish tugmasini bosing.",
+        );
+      }, 600);
     } catch (e: unknown) {
-      this.registering = false;
-      this.phase.set('welcome');
-      this.loading.set(false);
       alert(this.extractError(e));
+    } finally {
+      this.registering = false;
+      this.loading.set(false);
+      if (this.phase() === 'loading') {
+        this.phase.set('welcome');
+      }
     }
   }
 
   private extractError(e: unknown): string {
     if (e instanceof HttpErrorResponse) {
+      if (e.status === 0 || e.status >= 502) {
+        return "Server vaqtincha ishlamayapti. 1-2 daqiqadan keyin qayta urinib ko'ring.";
+      }
       const msg = e.error?.message;
       if (Array.isArray(msg)) return msg.join(', ');
       if (typeof msg === 'string') return msg;
+      if (e.status === 401) {
+        return "Telegram sessiyasi yaroqsiz. Botni @myBudgetControl_bot orqali oching.";
+      }
     }
     if (e instanceof Error) return e.message;
     return 'Xatolik yuz berdi';

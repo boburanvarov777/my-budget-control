@@ -19,6 +19,23 @@ export BACKEND_PORT=3000
 node dist/main &
 BACKEND_PID=$!
 
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if curl -sf "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
+    echo "Backend is ready."
+    break
+  fi
+  if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    echo "Backend process exited during startup."
+    exit 1
+  fi
+  sleep 1
+done
+
+if ! curl -sf "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
+  echo "Backend failed health check."
+  exit 1
+fi
+
 NGINX_PORT="${PORT:-8080}"
 echo "Starting nginx on port ${NGINX_PORT}..."
 sed "s/listen 8080/listen ${NGINX_PORT}/" /etc/nginx/sites-available/default > /tmp/nginx.conf \
