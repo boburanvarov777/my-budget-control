@@ -19,6 +19,7 @@ import { AdminModule } from './admin/admin.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CategoriesModule } from './categories/categories.module';
     TelegramModule,
     NotificationsModule,
     CategoriesModule,
+    ExchangeRatesModule,
   ],
 })
 export class AppModule {}

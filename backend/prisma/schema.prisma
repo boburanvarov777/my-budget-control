@@ -41,6 +41,11 @@ enum GoalType {
   CUSTOM
 }
 
+enum InstallmentCurrency {
+  UZS
+  USD
+}
+
 model User {
   id             String   @id @default(uuid())
   telegramId     String   @unique
@@ -151,12 +156,13 @@ model MicroLoan {
 }
 
 model Installment {
-  id              String   @id @default(uuid())
+  id              String               @id @default(uuid())
   userId          String
   name            String
-  totalAmount     Decimal  @db.Decimal(18, 2)
-  downPayment     Decimal  @default(0) @db.Decimal(18, 2)
-  monthlyPayment  Decimal  @db.Decimal(18, 2)
+  currency        InstallmentCurrency  @default(UZS)
+  totalAmount     Decimal              @default(0) @db.Decimal(18, 2)
+  downPayment     Decimal              @default(0) @db.Decimal(18, 2)
+  monthlyPayment  Decimal              @db.Decimal(18, 2)
   totalMonths     Int
   paidMonths      Int      @default(0)
   startDate       DateTime

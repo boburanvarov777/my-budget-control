@@ -9,14 +9,23 @@ import { DateInputComponent } from '../../shared/components/date-input/date-inpu
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { FabComponent } from '../../shared/components/fab/fab.component';
 import { MonthIndicatorComponent } from '../../shared/components/month-indicator/month-indicator.component';
-import { AmountPipe } from '../../shared/pipes/money.pipe';
+import { AmountPipe, MoneyPipe } from '../../shared/pipes/money.pipe';
 import { ToastService } from '../../shared/services/toast.service';
-import { coerceAmount, calcInstallmentMarkupPercent, formatMoney, monthsElapsedSince } from '../../shared/utils/format.util';
+import { ExchangeRateService } from '../../shared/services/exchange-rate.service';
+import {
+  coerceAmount,
+  calcInstallmentMarkupPercent,
+  formatMoney,
+  formatUsdConversionLine,
+  installmentCurrencyLabel,
+  monthsElapsedSince,
+} from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 
 interface InstallmentItem {
   id: string;
   name: string;
+  currency?: 'UZS' | 'USD';
   totalAmount: number;
   downPayment?: number;
   monthlyPayment: number;
@@ -39,6 +48,7 @@ interface InstallmentItem {
     DateInputComponent,
     MonthIndicatorComponent,
     AmountPipe,
+    MoneyPipe,
   ],
   template: `
     <section class="premium-page">
@@ -62,11 +72,19 @@ interface InstallmentItem {
           </div>
 
           <div class="premium-field">
-            <label class="premium-label">Tan narxi</label>
+            <label class="premium-label">Valyuta</label>
+            <select class="premium-select" [(ngModel)]="form.currency" name="currency">
+              <option value="UZS">So'm (UZS)</option>
+              <option value="USD">Dollar ($)</option>
+            </select>
+          </div>
+
+          <div class="premium-field">
+            <label class="premium-label">Tan narxi <span class="optional">(ixtiyoriy)</span></label>
             <app-decimal-input
               [(ngModel)]="form.totalAmount"
               name="totalAmount"
-              placeholder="12 000 000"
+              [placeholder]="form.currency === 'USD' ? 'Masalan: 1 200' : '12 000 000'"
               (ngModelChange)="onPricingChange()"
             />
           </div>
@@ -99,10 +117,21 @@ interface InstallmentItem {
             <app-decimal-input
               [(ngModel)]="form.monthlyPayment"
               name="monthlyPayment"
-              placeholder="1 500 000.50"
+              [placeholder]="form.currency === 'USD' ? '260' : '1 500 000.50'"
               (ngModelChange)="onPricingChange()"
             />
           </div>
+
+          @if (form.currency === 'USD' && formConversionLine()) {
+            <div class="conversion-box">
+              <span class="premium-muted">Keyingi to'lov (joriy kurs)</span>
+              <span class="conversion-value">{{ formConversionLine() }}</span>
+            </div>
+          }
+
+          @if (form.currency === 'USD' && usdRate()) {
+            <p class="rate-hint">Markaziy bank kursi: {{ usdRate() | amount }} so'm / $</p>
+          }
 
           <div class="premium-field">
             <label class="premium-label">Boshlanish sanasi</label>
@@ -168,7 +197,12 @@ interface InstallmentItem {
                 </div>
                 <div class="flex-1">
                   <p class="premium-body">{{ item.name }}</p>
-                  <p class="premium-small premium-muted">Oyiga {{ format(item.monthlyPayment) }}</p>
+                  <p class="premium-small premium-muted">
+                    Oyiga {{ item.monthlyPayment | money: currencyLabel(item.currency) }}
+                  </p>
+                  @if (isUsd(item) && conversionLine(item.monthlyPayment)) {
+                    <p class="conversion-line">{{ conversionLine(item.monthlyPayment) }}</p>
+                  }
                 </div>
                 @if (isComplete(item)) {
                   <span class="premium-chip premium-chip-success">Yopilgan</span>
@@ -205,18 +239,28 @@ interface InstallmentItem {
           />
 
           <div class="detail-rows">
-            <div class="detail-row">
-              <span class="premium-muted">Tan narxi</span>
-              <span>{{ item.totalAmount | amount }} so'm</span>
-            </div>
-            <div class="detail-row">
-              <span class="premium-muted">Boshlang'ich to'lov</span>
-              <span>{{ (item.downPayment ?? 0) | amount }} so'm</span>
-            </div>
+            @if (item.totalAmount > 0) {
+              <div class="detail-row">
+                <span class="premium-muted">Tan narxi</span>
+                <span>{{ item.totalAmount | money: currencyLabel(item.currency) }}</span>
+              </div>
+            }
+            @if ((item.downPayment ?? 0) > 0) {
+              <div class="detail-row">
+                <span class="premium-muted">Boshlang'ich to'lov</span>
+                <span>{{ (item.downPayment ?? 0) | money: currencyLabel(item.currency) }}</span>
+              </div>
+            }
             <div class="detail-row">
               <span class="premium-muted">Oyiga to'lov</span>
-              <span>{{ item.monthlyPayment | amount }} so'm</span>
+              <span>{{ item.monthlyPayment | money: currencyLabel(item.currency) }}</span>
             </div>
+            @if (isUsd(item) && conversionLine(item.monthlyPayment)) {
+              <div class="detail-row">
+                <span class="premium-muted">Joriy kursda</span>
+                <span class="text-gold">{{ conversionLine(item.monthlyPayment) }}</span>
+              </div>
+            }
             @if (itemMarkup(item) != null) {
               <div class="detail-row">
                 <span class="premium-muted">Ustama (foiz)</span>
@@ -239,6 +283,12 @@ interface InstallmentItem {
               <div class="detail-row">
                 <span class="premium-muted">Keyingi to'lov</span>
                 <span>{{ item.nextPaymentDate | date: 'd MMMM yyyy' }}</span>
+              </div>
+            }
+            @if (isUsd(item) && usdRate()) {
+              <div class="detail-row">
+                <span class="premium-muted">Markaziy bank kursi</span>
+                <span>{{ usdRate() | amount }} so'm / $</span>
               </div>
             }
           </div>
@@ -378,12 +428,45 @@ interface InstallmentItem {
         font-size: inherit;
         text-decoration: underline;
       }
+
+      .conversion-line {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: var(--color-gold);
+        line-height: 1.35;
+      }
+
+      .conversion-box {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        background: var(--color-gold-soft);
+      }
+
+      .conversion-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-gold);
+        line-height: 1.35;
+      }
+
+      .rate-hint {
+        margin: -8px 0 0;
+        font-size: 12px;
+        color: var(--color-muted);
+      }
+
+      .text-gold { color: var(--color-gold); }
     `,
   ],
 })
 export class InstallmentsComponent implements OnInit {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private exchangeRates = inject(ExchangeRateService);
 
   items = signal<InstallmentItem[]>([]);
   showForm = signal(false);
@@ -393,8 +476,10 @@ export class InstallmentsComponent implements OnInit {
   paidMonthsManual = signal(false);
   suggestedPaidMonths = signal<number | null>(null);
   format = formatMoney;
+  usdRate = this.exchangeRates.usdRate;
 
   form = {
+    currency: 'UZS' as 'UZS' | 'USD',
     downPayment: null as number | null,
     name: '',
     totalAmount: null as number | null,
@@ -405,7 +490,26 @@ export class InstallmentsComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.exchangeRates.ensureLoaded();
     this.load();
+  }
+
+  currencyLabel(currency?: string | null): string {
+    return installmentCurrencyLabel(currency);
+  }
+
+  isUsd(item: { currency?: string | null }): boolean {
+    return item.currency === 'USD';
+  }
+
+  conversionLine(amount: number): string | null {
+    const rate = this.usdRate();
+    if (!rate || amount <= 0) return null;
+    return formatUsdConversionLine(amount, rate);
+  }
+
+  formConversionLine(): string | null {
+    return this.conversionLine(coerceAmount(this.form.monthlyPayment));
   }
 
   formTitle(): string {
@@ -420,6 +524,7 @@ export class InstallmentsComponent implements OnInit {
     this.editingId.set(null);
     this.paidMonthsManual.set(false);
     this.form = {
+      currency: 'UZS',
       downPayment: null,
       name: '',
       totalAmount: null,
@@ -453,9 +558,10 @@ export class InstallmentsComponent implements OnInit {
     this.editingId.set(item.id);
     this.paidMonthsManual.set(true);
     this.form = {
+      currency: item.currency ?? 'UZS',
       downPayment: item.downPayment ?? null,
       name: item.name,
-      totalAmount: item.totalAmount,
+      totalAmount: item.totalAmount > 0 ? item.totalAmount : null,
       monthlyPayment: item.monthlyPayment,
       totalMonths: item.totalMonths,
       paidMonths: item.paidMonths,
@@ -526,6 +632,7 @@ export class InstallmentsComponent implements OnInit {
       this.items.set(
         rows.map((row) => ({
           ...row,
+          currency: (row.currency as 'UZS' | 'USD') ?? 'UZS',
           totalAmount: coerceAmount(row.totalAmount),
           downPayment: coerceAmount(row.downPayment),
           monthlyPayment: coerceAmount(row.monthlyPayment),
@@ -542,14 +649,15 @@ export class InstallmentsComponent implements OnInit {
     const downPayment = coerceAmount(this.form.downPayment);
     const totalMonths = Number(this.form.totalMonths);
 
-    if (!this.form.name?.trim() || totalAmount <= 0 || monthlyPayment <= 0 || totalMonths <= 0) {
-      this.toast.error("Barcha majburiy maydonlarni to'ldiring");
+    if (!this.form.name?.trim() || monthlyPayment <= 0 || totalMonths <= 0) {
+      this.toast.error("Nomi, oy to'lovi va oylar sonini kiriting");
       return;
     }
 
     const paidMonths = Math.min(totalMonths, Math.max(0, Number(this.form.paidMonths) || 0));
     const payload = {
       name: this.form.name.trim(),
+      currency: this.form.currency,
       totalAmount: Math.round(totalAmount * 100) / 100,
       downPayment: Math.round(downPayment * 100) / 100,
       monthlyPayment: Math.round(monthlyPayment * 100) / 100,

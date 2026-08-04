@@ -28,7 +28,8 @@ export class InstallmentsService {
       data: {
         userId,
         name: dto.name,
-        totalAmount: dto.totalAmount,
+        currency: dto.currency ?? 'UZS',
+        totalAmount: dto.totalAmount ?? 0,
         downPayment: dto.downPayment ?? 0,
         monthlyPayment: dto.monthlyPayment,
         totalMonths: dto.totalMonths,
@@ -54,6 +55,7 @@ export class InstallmentsService {
       where: { id },
       data: {
         ...(dto.name != null ? { name: dto.name } : {}),
+        ...(dto.currency != null ? { currency: dto.currency } : {}),
         ...(dto.totalAmount != null ? { totalAmount: dto.totalAmount } : {}),
         ...(dto.downPayment != null ? { downPayment: dto.downPayment } : {}),
         ...(dto.monthlyPayment != null ? { monthlyPayment: dto.monthlyPayment } : {}),

@@ -43,6 +43,17 @@ export function formatMoney(amount: number | string | unknown, currency = "so'm"
   return `${formatAmount(amount)} ${currency}`;
 }
 
+export function installmentCurrencyLabel(currency?: string | null): string {
+  return currency === 'USD' ? '$' : "so'm";
+}
+
+export function formatUsdConversionLine(usdAmount: number, rate: number): string {
+  const usd = formatAmount(usdAmount);
+  const rateFmt = formatAmount(rate);
+  const total = formatAmount(usdAmount * rate);
+  return `${usd} $ × ${rateFmt} = ${total} so'm`;
+}
+
 export function parseAmount(value: string | number | null | undefined): number | null {
   if (value == null || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -208,6 +219,7 @@ export function calcInstallmentMarkupPercent(
   monthlyPayment: number,
   months: number,
 ): number | null {
+  if (retailPrice <= 0) return null;
   const principal = retailPrice - downPayment;
   if (principal <= 0 || months <= 0 || monthlyPayment <= 0) return null;
   const totalInstallmentPaid = monthlyPayment * months;

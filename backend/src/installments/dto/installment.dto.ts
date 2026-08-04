@@ -1,5 +1,7 @@
+import { InstallmentCurrency } from '@prisma/client';
 import {
   IsDateString,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,9 +13,14 @@ export class CreateInstallmentDto {
   @IsString()
   name!: string;
 
+  @IsEnum(InstallmentCurrency)
+  @IsOptional()
+  currency?: InstallmentCurrency;
+
   @IsNumber()
   @Min(0)
-  totalAmount!: number;
+  @IsOptional()
+  totalAmount?: number;
 
   @IsNumber()
   @Min(0)
@@ -41,6 +48,10 @@ export class UpdateInstallmentDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @IsEnum(InstallmentCurrency)
+  @IsOptional()
+  currency?: InstallmentCurrency;
 
   @IsNumber()
   @Min(0)
