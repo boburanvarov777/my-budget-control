@@ -20,7 +20,7 @@ import { formatAmountInput, parseAmount } from '../../utils/format.util';
       [placeholder]="placeholder()"
       [value]="display()"
       (input)="onInput($event)"
-      (blur)="onBlur($event)"
+      (blur)="onBlur()"
     />
   `,
   providers: [
@@ -29,6 +29,18 @@ import { formatAmountInput, parseAmount } from '../../utils/format.util';
       useExisting: forwardRef(() => CurrencyInputComponent),
       multi: true,
     },
+  ],
+  styles: [
+    `
+      :host {
+        display: block;
+        width: 100%;
+      }
+
+      .premium-input {
+        width: 100%;
+      }
+    `,
   ],
 })
 export class CurrencyInputComponent implements ControlValueAccessor {
@@ -60,29 +72,31 @@ export class CurrencyInputComponent implements ControlValueAccessor {
   }
 
   onInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const cursorFromEnd = input.value.length - (input.selectionStart ?? input.value.length);
-    const parsed = parseAmount(input.value);
+    const el = event.target as HTMLInputElement;
+    const cursorFromEnd = el.value.length - (el.selectionStart ?? el.value.length);
+    const parsed = parseAmount(el.value);
 
     if (parsed == null) {
       this.display.set('');
-      input.value = '';
+      el.value = '';
       this.onChange(null);
       return;
     }
 
     const formatted = formatAmountInput(String(parsed));
     this.display.set(formatted);
-    input.value = formatted;
+    el.value = formatted;
 
     const nextPos = Math.max(0, formatted.length - cursorFromEnd);
-    input.setSelectionRange(nextPos, nextPos);
+    el.setSelectionRange(nextPos, nextPos);
     this.onChange(parsed);
   }
 
-  onBlur(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const parsed = parseAmount(input.value);
+  onBlur(): void {
+    const parsed = parseAmount(this.display());
+    if (parsed != null) {
+      this.display.set(formatAmountInput(String(parsed)));
+    }
     this.onChange(parsed);
     this.onTouched();
   }

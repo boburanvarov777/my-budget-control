@@ -2,6 +2,7 @@ import { Component, forwardRef, input, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import {
   formatDecimalDisplay,
+  formatDecimalLive,
   parseDecimal,
   sanitizeDecimalInput,
 } from '../../utils/format.util';
@@ -28,6 +29,18 @@ import {
       useExisting: forwardRef(() => DecimalInputComponent),
       multi: true,
     },
+  ],
+  styles: [
+    `
+      :host {
+        display: block;
+        width: 100%;
+      }
+
+      .premium-input {
+        width: 100%;
+      }
+    `,
   ],
 })
 export class DecimalInputComponent implements ControlValueAccessor {
@@ -63,10 +76,23 @@ export class DecimalInputComponent implements ControlValueAccessor {
   }
 
   onInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const sanitized = sanitizeDecimalInput(input.value, this.maxDecimals());
-    input.value = sanitized;
-    this.display.set(sanitized);
+    const el = event.target as HTMLInputElement;
+    const cursorFromEnd = el.value.length - (el.selectionStart ?? el.value.length);
+    const sanitized = sanitizeDecimalInput(el.value, this.maxDecimals());
+
+    if (!sanitized || sanitized === '.') {
+      this.display.set(sanitized);
+      el.value = sanitized;
+      this.onChange(null);
+      return;
+    }
+
+    const formatted = formatDecimalLive(sanitized, this.formatThousands());
+    this.display.set(formatted);
+    el.value = formatted;
+
+    const nextPos = Math.max(0, formatted.length - cursorFromEnd);
+    el.setSelectionRange(nextPos, nextPos);
     this.onChange(parseDecimal(sanitized, this.maxDecimals()));
   }
 
@@ -76,6 +102,8 @@ export class DecimalInputComponent implements ControlValueAccessor {
       this.display.set(
         formatDecimalDisplay(parsed, this.maxDecimals(), this.formatThousands()),
       );
+    } else {
+      this.display.set('');
     }
     this.onChange(parsed);
     this.onTouched();

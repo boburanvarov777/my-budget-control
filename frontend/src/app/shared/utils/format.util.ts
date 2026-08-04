@@ -74,6 +74,22 @@ export function parseDecimal(value: string | number | null | undefined, maxDecim
   return Number.isFinite(n) ? n : null;
 }
 
+export function formatDecimalLive(raw: string, formatThousands = true): string {
+  if (!raw) return '';
+  if (!formatThousands) return raw;
+
+  const normalized = raw.replace(/\s/g, '').replace(',', '.');
+  const dotIndex = normalized.indexOf('.');
+  const intRaw = dotIndex === -1 ? normalized : normalized.slice(0, dotIndex);
+  const decSuffix = dotIndex === -1 ? '' : normalized.slice(dotIndex);
+
+  if (!intRaw && !decSuffix) return '';
+  if (!intRaw) return `0${decSuffix}`;
+
+  const formattedInt = Number(intRaw).toLocaleString('uz-UZ').replace(/\u00a0/g, ' ');
+  return formattedInt + decSuffix;
+}
+
 export function formatDecimalDisplay(value: number | string, maxDecimals = 2, formatThousands = true): string {
   const n = typeof value === 'number' ? value : parseDecimal(String(value), maxDecimals);
   if (n == null) return '';
