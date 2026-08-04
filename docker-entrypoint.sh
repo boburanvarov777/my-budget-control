@@ -16,7 +16,18 @@ fi
 
 echo "Starting backend on port 3000..."
 export BACKEND_PORT=3000
-node dist/main &
+MAIN_FILE=""
+if [ -f dist/main.js ]; then
+  MAIN_FILE="dist/main.js"
+elif [ -f dist/src/main.js ]; then
+  MAIN_FILE="dist/src/main.js"
+else
+  echo "Backend entry not found under dist/"
+  ls -la dist/ || true
+  exit 1
+fi
+
+node "$MAIN_FILE" &
 BACKEND_PID=$!
 
 for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
