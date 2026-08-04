@@ -100,7 +100,7 @@ export class AuthService {
 
     await this.telegram.sendContactRequest(
       telegramId,
-      "📱 Bot chatiga qayting va pastdagi tugma orqali o'z raqamingizni yuboring.\n\nRaqamni qo'lda yozish yoki forward qilish ishlamaydi.",
+      "📱 Ro'yxatdan o'tish uchun pastdagi tugmani bosing va o'z raqamingizni yuboring.\n\nRaqamni qo'lda yozmang — faqat tugma orqali.",
     );
 
     return {
