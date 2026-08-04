@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { environment } from '../../../environments/environment';
 
 declare global {
   interface Window {
@@ -15,6 +16,10 @@ interface TelegramWebApp {
       id: number;
       first_name?: string;
       last_name?: string;
+      username?: string;
+    };
+    receiver?: {
+      id: number;
       username?: string;
     };
   };
@@ -102,9 +107,17 @@ export class TelegramService {
     tg.close();
   }
 
-  /** Bot chatini ochish — raqam yuborish tugmasi pastda ko'rinadi */
-  openBotChat(botUsername = 'cash_flow_bot'): void {
-    const url = `https://t.me/${botUsername}`;
+  /** Mini appni ochgan bot username (masalan: myBudgetControl_bot) */
+  getBotUsername(): string {
+    const fromTelegram = this.webApp?.initDataUnsafe?.receiver?.username;
+    if (fromTelegram) return fromTelegram.replace(/^@/, '');
+    return environment.telegramBotUsername.replace(/^@/, '');
+  }
+
+  /** O'z botimiz chatiga o'tish — registratsiya uchun */
+  openBotChat(botUsername?: string): void {
+    const username = (botUsername ?? this.getBotUsername()).replace(/^@/, '');
+    const url = `https://t.me/${username}`;
     const tg = this.webApp;
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(url);

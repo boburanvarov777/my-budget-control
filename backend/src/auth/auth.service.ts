@@ -66,9 +66,11 @@ export class AuthService {
     const name = firstName ?? 'do\'st';
 
     if (existing) {
-      await this.telegram.sendMessage(
+      await this.telegram.sendMessageWithWebApp(
         telegramId,
-        `Salom ${name} 👋\n\nSiz allaqachon ro'yxatdan o'tgansiz.\n\nIlovani ochish uchun pastdagi "Ilovani oching" tugmasini bosing.`,
+        `Salom ${name} 👋\n\nSiz allaqachon ro'yxatdan o'tgansiz.\n\nIlovani ochish uchun pastdagi tugmani bosing.`,
+        'Ilovani oching',
+        this.dashboardUrl(),
       );
       return;
     }
@@ -162,9 +164,11 @@ export class AuthService {
     });
     if (existing) {
       await this.telegram.removeKeyboard(fromTelegramId);
-      await this.telegram.sendMessage(
+      await this.telegram.sendMessageWithWebApp(
         fromTelegramId,
-        "✅ Siz allaqachon ro'yxatdan o'tgansiz.\n\nIlovani ochish uchun pastdagi \"Ilovani oching\" tugmasini bosing.",
+        "✅ Siz allaqachon ro'yxatdan o'tgansiz.\n\nIlovani ochish uchun pastdagi tugmani bosing.",
+        'Ilovani oching',
+        this.dashboardUrl(),
       );
       return;
     }

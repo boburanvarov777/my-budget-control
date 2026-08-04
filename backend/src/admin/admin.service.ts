@@ -32,4 +32,24 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async deleteUser(query: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: { equals: query, mode: 'insensitive' } },
+          { firstName: { equals: query, mode: 'insensitive' } },
+          { telegramId: query },
+        ],
+      },
+    });
+    if (!user) {
+      return { deleted: false, message: 'Foydalanuvchi topilmadi' };
+    }
+    await this.prisma.user.delete({ where: { id: user.id } });
+    return {
+      deleted: true,
+      message: `${user.username ?? user.firstName ?? user.telegramId} o'chirildi`,
+    };
+  }
 }

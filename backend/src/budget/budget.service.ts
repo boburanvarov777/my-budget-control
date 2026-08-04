@@ -38,7 +38,7 @@ export class BudgetService {
 
     const recommendations = this.buildRecommendations(remaining);
 
-    return this.prisma.budgetPlan.upsert({
+    const plan = await this.prisma.budgetPlan.upsert({
       where: {
         userId_month_year: {
           userId,
@@ -62,6 +62,15 @@ export class BudgetService {
         freeMoney: remaining - Object.values(recommendations).reduce((a, b) => a + b, 0),
       },
     });
+
+    return {
+      ...plan,
+      monthlyIncome: Number(plan.monthlyIncome),
+      freeMoney: Number(plan.freeMoney),
+      mandatoryTotal,
+      remaining,
+      recommendations,
+    };
   }
 
   private buildRecommendations(remaining: number) {

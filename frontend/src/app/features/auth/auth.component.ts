@@ -25,8 +25,8 @@ import { TelegramService } from '../../core/services/telegram.service';
             <p class="premium-caption">Budget Control</p>
             <h1 class="premium-title">Shaxsiy moliya</h1>
             <p class="premium-body premium-muted">
-              Premium moliyaviy boshqaruv ilovasi. Ro'yxatdan o'tish uchun botda
-              /start bosing va o'z raqamingizni yuboring.
+              Premium moliyaviy boshqaruv ilovasi. Ro'yxatdan o'tish uchun
+              @{{ botUsername }} botida /start bosing va o'z raqamingizni yuboring.
             </p>
           </div>
 
@@ -36,7 +36,7 @@ import { TelegramService } from '../../core/services/telegram.service';
             [disabled]="loading()"
             (click)="startRegistration()"
           >
-            {{ loading() ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish" }}
+            {{ loading() ? 'Yuklanmoqda...' : '@' + botUsername + " botiga o'tish" }}
           </button>
         </div>
       }
@@ -108,6 +108,7 @@ export class AuthComponent implements OnInit {
 
   phase = signal<'welcome' | 'loading'>('loading');
   loading = signal(true);
+  botUsername = this.telegram.getBotUsername();
 
   async ngOnInit(): Promise<void> {
     const initData = await this.waitForInitData();
@@ -144,7 +145,12 @@ export class AuthComponent implements OnInit {
       const initData = this.telegram.getInitData();
       if (!initData) throw new Error('Telegram Mini App ichida oching');
 
-      await this.auth.beginRegistration(initData);
+      const { alreadyRegistered } = await this.auth.beginRegistration(initData);
+      if (alreadyRegistered) {
+        await this.auth.miniAppLogin(initData);
+        await this.router.navigateByUrl('/dashboard');
+        return;
+      }
       this.telegram.openBotChat();
     } catch (e: unknown) {
       this.phase.set('welcome');

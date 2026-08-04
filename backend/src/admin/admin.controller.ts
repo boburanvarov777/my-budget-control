@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
 import { Roles } from '../auth/roles.decorator';
@@ -19,5 +19,10 @@ export class AdminController {
   @Get('users')
   getUsers() {
     return this.service.getUsers();
+  }
+
+  @Delete('users/:query')
+  deleteUser(@Param('query') query: string) {
+    return this.service.deleteUser(query);
   }
 }

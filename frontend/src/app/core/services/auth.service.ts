@@ -29,10 +29,17 @@ export class AuthService {
     return this.tokenValue();
   }
 
-  async beginRegistration(initData: string): Promise<void> {
-    await firstValueFrom(
-      this.http.post(`${environment.apiUrl}/auth/begin-registration`, { initData }),
+  async beginRegistration(initData: string): Promise<{ alreadyRegistered: boolean }> {
+    const res = await firstValueFrom(
+      this.http.post<{ success: boolean; message: string }>(
+        `${environment.apiUrl}/auth/begin-registration`,
+        { initData },
+      ),
     );
+    const alreadyRegistered =
+      typeof res.message === 'string' &&
+      res.message.toLowerCase().includes("allaqachon ro'yxatdan");
+    return { alreadyRegistered };
   }
 
   async miniAppLogin(initData: string): Promise<void> {
