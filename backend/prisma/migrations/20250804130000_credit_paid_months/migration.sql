@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Credit" ADD COLUMN "paidMonths" INTEGER NOT NULL DEFAULT 0;

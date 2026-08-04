@@ -31,6 +31,11 @@ export class CreateCreditDto {
   @Min(1)
   months!: number;
 
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  paidMonths?: number;
+
   @IsDateString()
   startDate!: string;
 
@@ -47,11 +52,31 @@ export class UpdateCreditDto {
   @IsNumber()
   @Min(0)
   @IsOptional()
-  remainingDebt?: number;
+  totalAmount?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  monthlyPayment?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  months?: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  paidMonths?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  interestRate?: number;
 
   @IsDateString()
   @IsOptional()
-  nextPaymentDate?: string;
+  startDate?: string;
 
   @IsEnum(CreditStatus)
   @IsOptional()

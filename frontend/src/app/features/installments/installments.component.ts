@@ -11,7 +11,7 @@ import { FabComponent } from '../../shared/components/fab/fab.component';
 import { MonthIndicatorComponent } from '../../shared/components/month-indicator/month-indicator.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 import { ToastService } from '../../shared/services/toast.service';
-import { coerceAmount, calcInstallmentMarkupPercent, formatMoney } from '../../shared/utils/format.util';
+import { coerceAmount, calcInstallmentMarkupPercent, formatMoney, monthsElapsedSince } from '../../shared/utils/format.util';
 import { extractApiError } from '../../shared/utils/http-error.util';
 
 interface InstallmentItem {
@@ -47,7 +47,7 @@ interface InstallmentItem {
           <app-icon name="chevron-left" [size]="18" />
           <span>Orqaga</span>
         </button>
-        <h1 class="form-title">Yangi muddatli to'lov</h1>
+        <h1 class="form-title">{{ formTitle() }}</h1>
 
         <form class="premium-card form-card" (ngSubmit)="submit()">
           <div class="premium-field">
@@ -106,7 +106,30 @@ interface InstallmentItem {
 
           <div class="premium-field">
             <label class="premium-label">Boshlanish sanasi</label>
-            <app-date-input [(ngModel)]="form.startDate" name="startDate" />
+            <app-date-input
+              [(ngModel)]="form.startDate"
+              name="startDate"
+              (ngModelChange)="onStartDateChange()"
+            />
+          </div>
+
+          <div class="premium-field">
+            <label class="premium-label">Allaqachon to'langan oylar</label>
+            <input
+              class="premium-input"
+              type="number"
+              min="0"
+              [max]="form.totalMonths"
+              [(ngModel)]="form.paidMonths"
+              name="paidMonths"
+              (ngModelChange)="onPaidMonthsManual()"
+            />
+            @if (suggestedPaidMonths() != null) {
+              <p class="field-hint">
+                Boshlanish sanasidan: {{ suggestedPaidMonths() }} oy —
+                <button type="button" class="link-btn" (click)="applySuggestedPaidMonths()">qo'llash</button>
+              </p>
+            }
           </div>
 
           @if (markupPercent() != null) {
@@ -120,7 +143,9 @@ interface InstallmentItem {
             <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeForm()">
               Bekor
             </button>
-            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">Qo'shish</button>
+            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">
+              {{ submitLabel() }}
+            </button>
           </div>
         </form>
       } @else {
@@ -218,6 +243,9 @@ interface InstallmentItem {
             }
           </div>
 
+          <button type="button" class="premium-btn premium-btn-primary premium-btn-block" (click)="editFromDetail()">
+            Tahrirlash
+          </button>
           <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeDetail()">
             Yopish
           </button>
@@ -334,6 +362,22 @@ interface InstallmentItem {
       }
 
       .text-success { color: var(--color-success); }
+
+      .field-hint {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: var(--color-muted);
+      }
+
+      .link-btn {
+        border: none;
+        background: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--color-gold);
+        font-size: inherit;
+        text-decoration: underline;
+      }
     `,
   ],
 })
@@ -343,8 +387,11 @@ export class InstallmentsComponent implements OnInit {
 
   items = signal<InstallmentItem[]>([]);
   showForm = signal(false);
+  editingId = signal<string | null>(null);
   detailItem = signal<InstallmentItem | null>(null);
   markupPercent = signal<number | null>(null);
+  paidMonthsManual = signal(false);
+  suggestedPaidMonths = signal<number | null>(null);
   format = formatMoney;
 
   form = {
@@ -353,6 +400,7 @@ export class InstallmentsComponent implements OnInit {
     totalAmount: null as number | null,
     monthlyPayment: null as number | null,
     totalMonths: 6,
+    paidMonths: 0,
     startDate: new Date().toISOString().slice(0, 10),
   };
 
@@ -360,21 +408,34 @@ export class InstallmentsComponent implements OnInit {
     this.load();
   }
 
+  formTitle(): string {
+    return this.editingId() ? "Muddatli to'lovni tahrirlash" : "Yangi muddatli to'lov";
+  }
+
+  submitLabel(): string {
+    return this.editingId() ? 'Yangilash' : "Qo'shish";
+  }
+
   openForm(): void {
+    this.editingId.set(null);
+    this.paidMonthsManual.set(false);
     this.form = {
       downPayment: null,
       name: '',
       totalAmount: null,
       monthlyPayment: null,
       totalMonths: 6,
+      paidMonths: 0,
       startDate: new Date().toISOString().slice(0, 10),
     };
     this.markupPercent.set(null);
+    this.updateSuggestedPaidMonths();
     this.showForm.set(true);
   }
 
   closeForm(): void {
     this.showForm.set(false);
+    this.editingId.set(null);
   }
 
   openDetail(item: InstallmentItem): void {
@@ -383,6 +444,53 @@ export class InstallmentsComponent implements OnInit {
 
   closeDetail(): void {
     this.detailItem.set(null);
+  }
+
+  editFromDetail(): void {
+    const item = this.detailItem();
+    if (!item) return;
+
+    this.editingId.set(item.id);
+    this.paidMonthsManual.set(true);
+    this.form = {
+      downPayment: item.downPayment ?? null,
+      name: item.name,
+      totalAmount: item.totalAmount,
+      monthlyPayment: item.monthlyPayment,
+      totalMonths: item.totalMonths,
+      paidMonths: item.paidMonths,
+      startDate: item.startDate.slice(0, 10),
+    };
+    this.onPricingChange();
+    this.updateSuggestedPaidMonths();
+    this.closeDetail();
+    this.showForm.set(true);
+  }
+
+  onStartDateChange(): void {
+    this.updateSuggestedPaidMonths();
+    if (!this.paidMonthsManual()) {
+      this.applySuggestedPaidMonths();
+    }
+  }
+
+  onPaidMonthsManual(): void {
+    this.paidMonthsManual.set(true);
+    const totalMonths = Number(this.form.totalMonths) || 0;
+    this.form.paidMonths = Math.min(totalMonths, Math.max(0, Number(this.form.paidMonths) || 0));
+  }
+
+  updateSuggestedPaidMonths(): void {
+    const elapsed = monthsElapsedSince(this.form.startDate);
+    const totalMonths = Number(this.form.totalMonths) || 0;
+    this.suggestedPaidMonths.set(totalMonths > 0 ? Math.min(totalMonths, elapsed) : elapsed);
+  }
+
+  applySuggestedPaidMonths(): void {
+    const suggested = this.suggestedPaidMonths();
+    if (suggested == null) return;
+    this.form.paidMonths = suggested;
+    this.paidMonthsManual.set(false);
   }
 
   remainingMonths(item: InstallmentItem): number {
@@ -439,22 +547,29 @@ export class InstallmentsComponent implements OnInit {
       return;
     }
 
-    this.api
-      .post('/installments', {
-        name: this.form.name.trim(),
-        totalAmount: Math.round(totalAmount * 100) / 100,
-        downPayment: Math.round(downPayment * 100) / 100,
-        monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-        totalMonths,
-        startDate: this.form.startDate,
-      })
-      .subscribe({
-        next: () => {
-          this.closeForm();
-          this.load();
-          this.toast.success("Muddatli to'lov qo'shildi");
-        },
-        error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
-      });
+    const paidMonths = Math.min(totalMonths, Math.max(0, Number(this.form.paidMonths) || 0));
+    const payload = {
+      name: this.form.name.trim(),
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      downPayment: Math.round(downPayment * 100) / 100,
+      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
+      totalMonths,
+      paidMonths,
+      startDate: this.form.startDate,
+    };
+
+    const editingId = this.editingId();
+    const req = editingId
+      ? this.api.patch(`/installments/${editingId}`, payload)
+      : this.api.post('/installments', payload);
+
+    req.subscribe({
+      next: () => {
+        this.closeForm();
+        this.load();
+        this.toast.success(editingId ? 'Muddatli to\'lov yangilandi' : "Muddatli to'lov qo'shildi");
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+    });
   }
 }

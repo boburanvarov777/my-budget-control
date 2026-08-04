@@ -159,17 +159,31 @@ export function currentMonthYear() {
 }
 
 export function creditPaidMonths(item: {
+  paidMonths?: number;
   totalAmount: unknown;
   remainingDebt: unknown;
   monthlyPayment: unknown;
   months: number;
 }): number {
+  if (item.paidMonths != null && Number.isFinite(Number(item.paidMonths))) {
+    return Math.min(item.months, Math.max(0, Number(item.paidMonths)));
+  }
   const total = coerceAmount(item.totalAmount);
   const remaining = coerceAmount(item.remainingDebt);
   const monthly = coerceAmount(item.monthlyPayment);
   if (monthly <= 0 || item.months <= 0) return 0;
   const paid = Math.floor((total - remaining) / monthly);
   return Math.min(item.months, Math.max(0, paid));
+}
+
+export function monthsElapsedSince(startDate: string, asOf = new Date()): number {
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return 0;
+  let months =
+    (asOf.getFullYear() - start.getFullYear()) * 12 +
+    (asOf.getMonth() - start.getMonth());
+  if (asOf.getDate() < start.getDate()) months -= 1;
+  return Math.max(0, months);
 }
 
 export function creditRemainingMonths(item: {

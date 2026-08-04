@@ -119,6 +119,7 @@ model Credit {
   downPayment     Decimal      @default(0) @db.Decimal(18, 2)
   interestRate    Decimal      @default(0) @db.Decimal(5, 2)
   months          Int
+  paidMonths      Int          @default(0)
   startDate       DateTime
   monthlyPayment  Decimal      @db.Decimal(18, 2)
   remainingDebt   Decimal      @db.Decimal(18, 2)

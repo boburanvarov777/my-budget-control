@@ -10,15 +10,18 @@ import { FabComponent } from '../../shared/components/fab/fab.component';
 import { MonthIndicatorComponent } from '../../shared/components/month-indicator/month-indicator.component';
 import { AmountPipe } from '../../shared/pipes/money.pipe';
 import { ToastService } from '../../shared/services/toast.service';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   calcAnnualInterestRate,
   coerceAmount,
   creditPaidMonths,
   creditRemainingMonths,
   formatMoney,
+  monthsElapsedSince,
   parseDecimal,
   sanitizeDecimalInput,
 } from '../../shared/utils/format.util';
+import { extractApiError } from '../../shared/utils/http-error.util';
 
 interface CreditItem {
   id: string;
@@ -26,6 +29,7 @@ interface CreditItem {
   totalAmount: number;
   interestRate: number;
   months: number;
+  paidMonths?: number;
   startDate: string;
   monthlyPayment: number;
   remainingDebt: number;
@@ -55,7 +59,7 @@ interface CreditItem {
           <app-icon name="chevron-left" [size]="18" />
           <span>Orqaga</span>
         </button>
-        <h1 class="form-title">Yangi kredit</h1>
+        <h1 class="form-title">{{ editingId() ? 'Kreditni tahrirlash' : 'Yangi kredit' }}</h1>
 
         <form class="premium-card form-card" (ngSubmit)="submit()">
           <div class="premium-field">
@@ -117,14 +121,39 @@ interface CreditItem {
 
           <div class="premium-field">
             <label class="premium-label">Boshlanish sanasi</label>
-            <app-date-input [(ngModel)]="form.startDate" name="startDate" />
+            <app-date-input
+              [(ngModel)]="form.startDate"
+              name="startDate"
+              (ngModelChange)="onStartDateChange()"
+            />
+          </div>
+
+          <div class="premium-field">
+            <label class="premium-label">Allaqachon to'langan oylar</label>
+            <input
+              class="premium-input"
+              type="number"
+              min="0"
+              [max]="form.months"
+              [(ngModel)]="form.paidMonths"
+              name="paidMonths"
+              (ngModelChange)="onPaidMonthsManual()"
+            />
+            @if (suggestedPaidMonths() != null) {
+              <p class="field-hint">
+                Boshlanish sanasidan: {{ suggestedPaidMonths() }} oy —
+                <button type="button" class="link-btn" (click)="applySuggestedPaidMonths()">qo'llash</button>
+              </p>
+            }
           </div>
 
           <div class="premium-grid-2 form-actions">
             <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeForm()">
               Bekor
             </button>
-            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">Saqlash</button>
+            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">
+              {{ editingId() ? 'Yangilash' : 'Saqlash' }}
+            </button>
           </div>
         </form>
       } @else {
@@ -222,6 +251,9 @@ interface CreditItem {
             }
           </div>
 
+          <button type="button" class="premium-btn premium-btn-primary premium-btn-block" (click)="editFromDetail()">
+            Tahrirlash
+          </button>
           <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeDetail()">
             Yopish
           </button>
@@ -323,6 +355,16 @@ interface CreditItem {
 
       .text-success { color: var(--color-success); }
       .text-danger { color: var(--color-danger); }
+
+      .link-btn {
+        border: none;
+        background: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--color-gold);
+        font-size: inherit;
+        text-decoration: underline;
+      }
     `,
   ],
 })
@@ -332,9 +374,12 @@ export class CreditsComponent implements OnInit {
 
   items = signal<CreditItem[]>([]);
   showForm = signal(false);
+  editingId = signal<string | null>(null);
   detailItem = signal<CreditItem | null>(null);
   interestManual = signal(false);
   interestAuto = signal(false);
+  paidMonthsManual = signal(false);
+  suggestedPaidMonths = signal<number | null>(null);
   format = formatMoney;
   coerceAmount = coerceAmount;
   paidMonths = creditPaidMonths;
@@ -345,6 +390,7 @@ export class CreditsComponent implements OnInit {
     totalAmount: null as number | null,
     interestRate: null as number | null,
     months: 12,
+    paidMonths: 0,
     startDate: new Date().toISOString().slice(0, 10),
     monthlyPayment: null as number | null,
   };
@@ -354,21 +400,26 @@ export class CreditsComponent implements OnInit {
   }
 
   openForm(): void {
+    this.editingId.set(null);
     this.interestManual.set(false);
     this.interestAuto.set(false);
+    this.paidMonthsManual.set(false);
     this.form = {
       name: '',
       totalAmount: null,
       interestRate: null,
       months: 12,
+      paidMonths: 0,
       startDate: new Date().toISOString().slice(0, 10),
       monthlyPayment: null,
     };
+    this.updateSuggestedPaidMonths();
     this.showForm.set(true);
   }
 
   closeForm(): void {
     this.showForm.set(false);
+    this.editingId.set(null);
   }
 
   openDetail(item: CreditItem): void {
@@ -377,6 +428,54 @@ export class CreditsComponent implements OnInit {
 
   closeDetail(): void {
     this.detailItem.set(null);
+  }
+
+  editFromDetail(): void {
+    const item = this.detailItem();
+    if (!item) return;
+
+    this.editingId.set(item.id);
+    this.interestManual.set(true);
+    this.interestAuto.set(false);
+    this.paidMonthsManual.set(true);
+    this.form = {
+      name: item.name,
+      totalAmount: item.totalAmount,
+      interestRate: item.interestRate,
+      months: item.months,
+      paidMonths: this.paidMonths(item),
+      startDate: item.startDate.slice(0, 10),
+      monthlyPayment: item.monthlyPayment,
+    };
+    this.updateSuggestedPaidMonths();
+    this.closeDetail();
+    this.showForm.set(true);
+  }
+
+  onStartDateChange(): void {
+    this.updateSuggestedPaidMonths();
+    if (!this.paidMonthsManual()) {
+      this.applySuggestedPaidMonths();
+    }
+  }
+
+  onPaidMonthsManual(): void {
+    this.paidMonthsManual.set(true);
+    const months = Number(this.form.months) || 0;
+    this.form.paidMonths = Math.min(months, Math.max(0, Number(this.form.paidMonths) || 0));
+  }
+
+  updateSuggestedPaidMonths(): void {
+    const elapsed = monthsElapsedSince(this.form.startDate);
+    const months = Number(this.form.months) || 0;
+    this.suggestedPaidMonths.set(months > 0 ? Math.min(months, elapsed) : elapsed);
+  }
+
+  applySuggestedPaidMonths(): void {
+    const suggested = this.suggestedPaidMonths();
+    if (suggested == null) return;
+    this.form.paidMonths = suggested;
+    this.paidMonthsManual.set(false);
   }
 
   interestDisplay(): string {
@@ -419,6 +518,7 @@ export class CreditsComponent implements OnInit {
           remainingDebt: coerceAmount(row.remainingDebt),
           interestRate: coerceAmount(row.interestRate),
           months: Number(row.months) || 0,
+          paidMonths: Number(row.paidMonths) || 0,
         })),
       ),
     );
@@ -454,22 +554,29 @@ export class CreditsComponent implements OnInit {
       ? coerceAmount(this.form.interestRate)
       : calcAnnualInterestRate(totalAmount, monthlyPayment, months);
 
-    this.api
-      .post('/credits', {
-        name: this.form.name.trim(),
-        totalAmount: Math.round(totalAmount * 100) / 100,
-        monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-        months,
-        startDate: this.form.startDate,
-        interestRate: Math.round(interestRate * 100) / 100,
-      })
-      .subscribe({
-        next: () => {
-          this.closeForm();
-          this.load();
-          this.toast.success("Kredit muvaffaqiyatli qo'shildi");
-        },
-        error: () => this.toast.error('Saqlashda xatolik'),
-      });
+    const paidMonths = Math.min(months, Math.max(0, Number(this.form.paidMonths) || 0));
+    const payload = {
+      name: this.form.name.trim(),
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
+      months,
+      paidMonths,
+      startDate: this.form.startDate,
+      interestRate: Math.round(interestRate * 100) / 100,
+    };
+
+    const editingId = this.editingId();
+    const req = editingId
+      ? this.api.patch(`/credits/${editingId}`, payload)
+      : this.api.post('/credits', payload);
+
+    req.subscribe({
+      next: () => {
+        this.closeForm();
+        this.load();
+        this.toast.success(editingId ? 'Kredit yangilandi' : "Kredit muvaffaqiyatli qo'shildi");
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+    });
   }
 }

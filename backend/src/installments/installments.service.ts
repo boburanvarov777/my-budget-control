@@ -18,8 +18,11 @@ export class InstallmentsService {
 
   create(userId: string, dto: CreateInstallmentDto) {
     const start = new Date(dto.startDate);
-    const next = new Date(start);
-    next.setMonth(next.getMonth() + 1);
+    const paidMonths = Math.min(
+      dto.totalMonths,
+      Math.max(0, dto.paidMonths ?? 0),
+    );
+    const nextPaymentDate = this.nextPaymentDate(start, paidMonths, dto.totalMonths);
 
     return this.prisma.installment.create({
       data: {
@@ -29,26 +32,35 @@ export class InstallmentsService {
         downPayment: dto.downPayment ?? 0,
         monthlyPayment: dto.monthlyPayment,
         totalMonths: dto.totalMonths,
+        paidMonths,
         startDate: start,
-        nextPaymentDate: next,
+        nextPaymentDate,
       },
     });
   }
 
   async update(userId: string, id: string, dto: UpdateInstallmentDto) {
-    await this.ensureOwned(userId, id);
-    const item = await this.prisma.installment.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException();
+    const existing = await this.ensureOwned(userId, id);
 
-    const paidMonths = dto.paidMonths ?? item.paidMonths;
-    const next = new Date(item.startDate);
-    next.setMonth(next.getMonth() + paidMonths + 1);
+    const totalMonths = dto.totalMonths ?? existing.totalMonths;
+    const paidMonths = Math.min(
+      totalMonths,
+      Math.max(0, dto.paidMonths ?? existing.paidMonths),
+    );
+    const start = dto.startDate ? new Date(dto.startDate) : existing.startDate;
+    const nextPaymentDate = this.nextPaymentDate(start, paidMonths, totalMonths);
 
     return this.prisma.installment.update({
       where: { id },
       data: {
+        ...(dto.name != null ? { name: dto.name } : {}),
+        ...(dto.totalAmount != null ? { totalAmount: dto.totalAmount } : {}),
+        ...(dto.downPayment != null ? { downPayment: dto.downPayment } : {}),
+        ...(dto.monthlyPayment != null ? { monthlyPayment: dto.monthlyPayment } : {}),
+        ...(dto.totalMonths != null ? { totalMonths: dto.totalMonths } : {}),
+        ...(dto.startDate != null ? { startDate: start } : {}),
         paidMonths,
-        nextPaymentDate: paidMonths >= item.totalMonths ? null : next,
+        nextPaymentDate,
       },
     });
   }
@@ -58,10 +70,18 @@ export class InstallmentsService {
     return this.prisma.installment.delete({ where: { id } });
   }
 
+  private nextPaymentDate(start: Date, paidMonths: number, totalMonths: number) {
+    if (paidMonths >= totalMonths) return null;
+    const next = new Date(start);
+    next.setMonth(next.getMonth() + paidMonths + 1);
+    return next;
+  }
+
   private async ensureOwned(userId: string, id: string) {
     const item = await this.prisma.installment.findFirst({
       where: { id, userId },
     });
     if (!item) throw new NotFoundException('Installment not found');
+    return item;
   }
 }

@@ -43,7 +43,7 @@ interface MicroLoanItem {
           <app-icon name="chevron-left" [size]="18" />
           <span>Orqaga</span>
         </button>
-        <h1 class="form-title">Yangi mikroqarz</h1>
+        <h1 class="form-title">{{ editingId() ? 'Mikroqarzni tahrirlash' : 'Yangi mikroqarz' }}</h1>
 
         <form class="premium-card form-card" (ngSubmit)="submit()">
           <div class="premium-field">
@@ -63,14 +63,25 @@ interface MicroLoanItem {
           <div class="premium-field">
             <label class="premium-label">Olingan sana</label>
             <app-date-input [(ngModel)]="form.takenDate" name="takenDate" />
-            <p class="field-hint">Qaytarish sanasi avtomatik 1 oy keyin belgilanadi</p>
+            @if (!editingId()) {
+              <p class="field-hint">Qaytarish sanasi avtomatik 1 oy keyin belgilanadi</p>
+            }
           </div>
+
+          @if (editingId()) {
+            <div class="premium-field">
+              <label class="premium-label">Qaytarish sanasi</label>
+              <app-date-input [(ngModel)]="form.dueDate" name="dueDate" />
+            </div>
+          }
 
           <div class="premium-grid-2 form-actions">
             <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeForm()">
               Bekor
             </button>
-            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">Saqlash</button>
+            <button type="submit" class="premium-btn premium-btn-primary premium-btn-block">
+              {{ editingId() ? 'Yangilash' : 'Saqlash' }}
+            </button>
           </div>
         </form>
       } @else {
@@ -148,6 +159,9 @@ interface MicroLoanItem {
             </button>
           }
 
+          <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="editFromDetail()">
+            Tahrirlash
+          </button>
           <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeDetail()">
             Yopish
           </button>
@@ -241,6 +255,7 @@ export class MicroLoansComponent implements OnInit {
 
   items = signal<MicroLoanItem[]>([]);
   showForm = signal(false);
+  editingId = signal<string | null>(null);
   detailItem = signal<MicroLoanItem | null>(null);
 
   providers = [
@@ -255,6 +270,7 @@ export class MicroLoansComponent implements OnInit {
     provider: 'UZUM',
     amount: null as number | null,
     takenDate: new Date().toISOString().slice(0, 10),
+    dueDate: new Date().toISOString().slice(0, 10),
   };
 
   ngOnInit(): void {
@@ -262,16 +278,19 @@ export class MicroLoansComponent implements OnInit {
   }
 
   openForm(): void {
+    this.editingId.set(null);
     this.form = {
       provider: 'UZUM',
       amount: null,
       takenDate: new Date().toISOString().slice(0, 10),
+      dueDate: addMonthsToDate(new Date().toISOString().slice(0, 10), 1),
     };
     this.showForm.set(true);
   }
 
   closeForm(): void {
     this.showForm.set(false);
+    this.editingId.set(null);
   }
 
   openDetail(loan: MicroLoanItem): void {
@@ -280,6 +299,21 @@ export class MicroLoansComponent implements OnInit {
 
   closeDetail(): void {
     this.detailItem.set(null);
+  }
+
+  editFromDetail(): void {
+    const loan = this.detailItem();
+    if (!loan) return;
+
+    this.editingId.set(loan.id);
+    this.form = {
+      provider: loan.provider,
+      amount: loan.amount,
+      takenDate: loan.takenDate.slice(0, 10),
+      dueDate: loan.dueDate.slice(0, 10),
+    };
+    this.closeDetail();
+    this.showForm.set(true);
   }
 
   providerLabel(code: string): string {
@@ -325,21 +359,33 @@ export class MicroLoansComponent implements OnInit {
       return;
     }
 
-    this.api
-      .post('/micro-loans', {
-        provider: this.form.provider,
-        amount: Math.round(amount * 100) / 100,
-        takenDate: this.form.takenDate,
-        dueDate: addMonthsToDate(this.form.takenDate, 1),
-      })
-      .subscribe({
-        next: () => {
-          this.closeForm();
-          this.load();
-          this.toast.success("Mikroqarz qo'shildi");
-        },
-        error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
-      });
+    const editingId = this.editingId();
+    const payload = editingId
+      ? {
+          provider: this.form.provider,
+          amount: Math.round(amount * 100) / 100,
+          takenDate: this.form.takenDate,
+          dueDate: this.form.dueDate,
+        }
+      : {
+          provider: this.form.provider,
+          amount: Math.round(amount * 100) / 100,
+          takenDate: this.form.takenDate,
+          dueDate: addMonthsToDate(this.form.takenDate, 1),
+        };
+
+    const req = editingId
+      ? this.api.patch(`/micro-loans/${editingId}`, payload)
+      : this.api.post('/micro-loans', payload);
+
+    req.subscribe({
+      next: () => {
+        this.closeForm();
+        this.load();
+        this.toast.success(editingId ? 'Mikroqarz yangilandi' : "Mikroqarz qo'shildi");
+      },
+      error: (e: HttpErrorResponse) => this.toast.error(extractApiError(e)),
+    });
   }
 
   markPaid(id: string): void {

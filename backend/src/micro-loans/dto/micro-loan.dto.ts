@@ -25,6 +25,23 @@ export class CreateMicroLoanDto {
 }
 
 export class UpdateMicroLoanDto {
+  @IsEnum(MicroLoanProvider)
+  @IsOptional()
+  provider?: MicroLoanProvider;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  amount?: number;
+
+  @IsDateString()
+  @IsOptional()
+  takenDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dueDate?: string;
+
   @IsBoolean()
   @IsOptional()
   isPaid?: boolean;

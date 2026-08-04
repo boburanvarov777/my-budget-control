@@ -38,7 +38,13 @@ export class MicroLoansService {
     await this.ensureOwned(userId, id);
     return this.prisma.microLoan.update({
       where: { id },
-      data: { ...(dto.isPaid != null ? { isPaid: dto.isPaid } : {}) },
+      data: {
+        ...(dto.provider != null ? { provider: dto.provider } : {}),
+        ...(dto.amount != null ? { amount: dto.amount } : {}),
+        ...(dto.takenDate != null ? { takenDate: new Date(dto.takenDate) } : {}),
+        ...(dto.dueDate != null ? { dueDate: new Date(dto.dueDate) } : {}),
+        ...(dto.isPaid != null ? { isPaid: dto.isPaid } : {}),
+      },
     });
   }
 
