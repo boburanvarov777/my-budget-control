@@ -1,10 +1,4 @@
-import {
-  IsArray,
-  IsInt,
-  IsNumber,
-  IsObject,
-  Min,
-} from 'class-validator';
+import { IsArray, IsInt, IsNumber, IsObject, Min } from 'class-validator';
 
 export class CreateBudgetPlanDto {
   @IsInt()

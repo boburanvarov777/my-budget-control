@@ -4,6 +4,11 @@ import { UserRole } from '@prisma/client';
 
 export const ROLES_KEY = 'roles';
 
+/** Request shape after JwtStrategy.validate() has attached the user. */
+interface AuthenticatedRequest {
+  user?: { role?: UserRole };
+}
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -14,7 +19,11 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
     if (!roles?.length) return true;
-    const { user } = context.switchToHttp().getRequest();
-    return roles.includes(user.role);
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const role = request.user?.role;
+    // No user or no role means the JWT guard did not run: deny rather than
+    // let `undefined` fall through an includes() check.
+    return role != null && roles.includes(role);
   }
 }

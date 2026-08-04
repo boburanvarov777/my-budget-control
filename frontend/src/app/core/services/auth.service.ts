@@ -16,6 +16,16 @@ interface AuthResponse {
   user: AuthUser;
 }
 
+export interface BeginRegistrationResult {
+  /** Bu Telegram akkaunt allaqachon bazada bor. */
+  alreadyRegistered: boolean;
+  /** Bot chatida "Raqamni yuborish" tugmasi ko'rindi. */
+  contactRequestSent: boolean;
+  /** Qaysi botni ochish kerakligini backend aytadi. */
+  botUsername: string;
+  message: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   /** JWT faqat xotirada — localStorage/sessionStorage ishlatilmaydi */
@@ -29,17 +39,18 @@ export class AuthService {
     return this.tokenValue();
   }
 
-  async beginRegistration(initData: string): Promise<{ alreadyRegistered: boolean }> {
-    const res = await firstValueFrom(
-      this.http.post<{ success: boolean; message: string }>(
+  /**
+   * Backend endi aniq flag qaytaradi. Ilgari bu yerda javob matni bo'yicha
+   * qidiruv ("allaqachon ro'yxatdan") qilinardi — matn bir harfga o'zgarsa
+   * oqim buzilar edi.
+   */
+  async beginRegistration(initData: string): Promise<BeginRegistrationResult> {
+    return firstValueFrom(
+      this.http.post<BeginRegistrationResult>(
         `${environment.apiUrl}/auth/begin-registration`,
         { initData },
       ),
     );
-    const alreadyRegistered =
-      typeof res.message === 'string' &&
-      res.message.toLowerCase().includes("allaqachon ro'yxatdan");
-    return { alreadyRegistered };
   }
 
   async miniAppLogin(initData: string): Promise<void> {

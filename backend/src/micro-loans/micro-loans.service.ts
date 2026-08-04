@@ -41,7 +41,9 @@ export class MicroLoansService {
       data: {
         ...(dto.provider != null ? { provider: dto.provider } : {}),
         ...(dto.amount != null ? { amount: dto.amount } : {}),
-        ...(dto.takenDate != null ? { takenDate: new Date(dto.takenDate) } : {}),
+        ...(dto.takenDate != null
+          ? { takenDate: new Date(dto.takenDate) }
+          : {}),
         ...(dto.dueDate != null ? { dueDate: new Date(dto.dueDate) } : {}),
         ...(dto.isPaid != null ? { isPaid: dto.isPaid } : {}),
       },

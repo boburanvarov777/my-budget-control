@@ -8,7 +8,8 @@ type CbuRateRow = {
 
 @Injectable()
 export class ExchangeRatesService {
-  private cache: { rate: number; date: string; fetchedAt: number } | null = null;
+  private cache: { rate: number; date: string; fetchedAt: number } | null =
+    null;
   private readonly ttlMs = 15 * 60 * 1000;
 
   async getUsdRate() {
@@ -24,7 +25,9 @@ export class ExchangeRatesService {
 
     const res = await fetch('https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/');
     if (!res.ok) {
-      throw new ServiceUnavailableException('Valyuta kursi vaqtincha mavjud emas');
+      throw new ServiceUnavailableException(
+        'Valyuta kursi vaqtincha mavjud emas',
+      );
     }
 
     const rows = (await res.json()) as CbuRateRow[];
@@ -35,7 +38,7 @@ export class ExchangeRatesService {
 
     const rate = Number.parseFloat(latest.Rate);
     if (!Number.isFinite(rate) || rate <= 0) {
-      throw new ServiceUnavailableException('Valyuta kursi noto\'g\'ri');
+      throw new ServiceUnavailableException("Valyuta kursi noto'g'ri");
     }
 
     this.cache = { rate, date: latest.Date, fetchedAt: now };

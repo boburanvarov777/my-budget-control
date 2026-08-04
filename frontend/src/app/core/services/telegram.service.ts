@@ -18,10 +18,6 @@ interface TelegramWebApp {
       last_name?: string;
       username?: string;
     };
-    receiver?: {
-      id: number;
-      username?: string;
-    };
   };
   ready: () => void;
   expand: () => void;
@@ -34,12 +30,6 @@ interface TelegramWebApp {
   exitFullscreen?: () => void;
   themeParams: Record<string, string>;
   colorScheme: 'light' | 'dark';
-  requestContact?: (
-    callback: (shared: boolean, contact?: { phone_number: string }) => void,
-  ) => void;
-  requestPhoneNumber?: (
-    callback: (shared: boolean, phone?: string) => void,
-  ) => void;
   openTelegramLink?: (url: string) => void;
   openLink?: (url: string) => void;
 }
@@ -107,27 +97,42 @@ export class TelegramService {
     tg.close();
   }
 
-  /** Mini appni ochgan bot username (masalan: myBudgetControl_bot) */
+  /**
+   * O'z botimiz username'i.
+   *
+   * DIQQAT: bu yerda `initDataUnsafe.receiver` ISHLATILMAYDI. `receiver` —
+   * mini app attachment menu orqali ochilganda suhbatdoshning akkaunti, ya'ni
+   * BOSHQA bot/odam. Ilgari o'sha qiymat olinar edi va "Ro'yxatdan o'tish"
+   * tugmasi foydalanuvchini butunlay boshqa botga olib ketardi.
+   * Bot username faqat backend'dan yoki environment'dan olinadi.
+   */
   getBotUsername(): string {
-    const fromTelegram = this.webApp?.initDataUnsafe?.receiver?.username;
-    if (fromTelegram) return fromTelegram.replace(/^@/, '');
     return environment.telegramBotUsername.replace(/^@/, '');
   }
 
-  /** O'z botimiz chatiga o'tish — registratsiya uchun */
+  /**
+   * Mini appni yopib, o'z botimiz chatini ochadi.
+   * `openTelegramLink` Telegram'ning o'zi mini appni yopib chatga o'tkazadi;
+   * eski klientlarda ishlamasa `close()` zaxira sifatida chaqiriladi.
+   */
   openBotChat(botUsername?: string): void {
     const username = (botUsername ?? this.getBotUsername()).replace(/^@/, '');
     const url = `https://t.me/${username}`;
     const tg = this.webApp;
-    if (tg?.openTelegramLink) {
+
+    if (!tg) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    if (typeof tg.openTelegramLink === 'function') {
       tg.openTelegramLink(url);
-      return;
-    }
-    if (tg?.openLink) {
+    } else if (typeof tg.openLink === 'function') {
       tg.openLink(url);
-      return;
     }
-    window.open(url, '_blank');
+
+    // Ba'zi klientlarda openTelegramLink mini appni yopmaydi.
+    setTimeout(() => tg.close(), 300);
   }
 
   getInitData(): string {
@@ -136,35 +141,5 @@ export class TelegramService {
 
   getUsername(): string | undefined {
     return this.webApp?.initDataUnsafe.user?.username;
-  }
-
-  /** Faqat Telegram orqali o'z raqamini ulash — qo'lda kiritish yo'q */
-  async requestPhone(): Promise<string> {
-    const tg = this.webApp;
-    if (!tg) {
-      throw new Error('Ilovani Telegram ichida oching');
-    }
-
-    if (typeof tg.requestPhoneNumber === 'function') {
-      const phone = await new Promise<string | null>((resolve) => {
-        tg.requestPhoneNumber!((shared, phoneNumber) => {
-          resolve(shared && phoneNumber ? phoneNumber : null);
-        });
-      });
-      if (phone) return phone;
-    }
-
-    if (typeof tg.requestContact === 'function') {
-      const phone = await new Promise<string | null>((resolve) => {
-        tg.requestContact!((shared, contact) => {
-          resolve(shared && contact?.phone_number ? contact.phone_number : null);
-        });
-      });
-      if (phone) return phone;
-    }
-
-    throw new Error(
-      "Telegram orqali o'z raqamingizni yuborish majburiy. Pastdagi tugmani bosing va 'Raqamni yuborish'ni tanlang.",
-    );
   }
 }

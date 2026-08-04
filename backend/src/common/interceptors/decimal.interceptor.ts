@@ -11,7 +11,10 @@ import { toNumber } from '../utils/decimal.util';
 
 @Injectable()
 export class DecimalInterceptor implements NestInterceptor {
-  intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(
+    _context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<unknown> {
     return next.handle().pipe(map((data) => this.transform(data)));
   }
 

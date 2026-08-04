@@ -25,7 +25,13 @@ const SYSTEM_INCOME: CategoryItem[] = [
 
 const SYSTEM_EXPENSE: CategoryItem[] = [
   { id: null, code: 'FOOD', label: 'Oziq-ovqat', icon: '🥩', custom: false },
-  { id: null, code: 'TRANSPORT', label: 'Transport', icon: '🚗', custom: false },
+  {
+    id: null,
+    code: 'TRANSPORT',
+    label: 'Transport',
+    icon: '🚗',
+    custom: false,
+  },
   { id: null, code: 'UTILITIES', label: 'Kommunal', icon: '🏠', custom: false },
   { id: null, code: 'CHILD', label: 'Bola', icon: '👶', custom: false },
   { id: null, code: 'CAFE', label: 'Kafe', icon: '🍔', custom: false },
@@ -33,7 +39,13 @@ const SYSTEM_EXPENSE: CategoryItem[] = [
   { id: null, code: 'GAMING', label: "O'yin", icon: '🎮', custom: false },
   { id: null, code: 'GIFT', label: "Sovg'a", icon: '🎁', custom: false },
   { id: null, code: 'SHOPPING', label: 'Shopping', icon: '🛍', custom: false },
-  { id: null, code: 'PHARMACY', label: 'Dori-darmon', icon: '💊', custom: false },
+  {
+    id: null,
+    code: 'PHARMACY',
+    label: 'Dori-darmon',
+    icon: '💊',
+    custom: false,
+  },
   { id: null, code: 'OTHER', label: 'Boshqa', icon: '📦', custom: false },
 ];
 
@@ -45,7 +57,10 @@ export class CategoriesService {
     return this.merge(type, []);
   }
 
-  async findAllWithCustom(userId: string, type: CategoryType): Promise<CategoryItem[]> {
+  async findAllWithCustom(
+    userId: string,
+    type: CategoryType,
+  ): Promise<CategoryItem[]> {
     const custom = await this.prisma.transactionCategory.findMany({
       where: { userId, type },
       orderBy: { createdAt: 'asc' },
@@ -65,7 +80,8 @@ export class CategoriesService {
 
   async create(userId: string, dto: CreateCategoryDto) {
     const label = dto.label.trim().replace(/\s+/g, ' ');
-    if (!label) throw new BadRequestException('Kategoriya nomi bo\'sh bo\'lmasin');
+    if (!label)
+      throw new BadRequestException("Kategoriya nomi bo'sh bo'lmasin");
 
     const existing = await this.findAllWithCustom(userId, dto.type);
     const normalized = label.toLowerCase();
@@ -108,16 +124,18 @@ export class CategoriesService {
   }
 
   private merge(type: CategoryType, custom: CategoryItem[]): CategoryItem[] {
-    const system = type === CategoryType.INCOME ? SYSTEM_INCOME : SYSTEM_EXPENSE;
+    const system =
+      type === CategoryType.INCOME ? SYSTEM_INCOME : SYSTEM_EXPENSE;
     return [...system, ...custom];
   }
 
   private buildCode(label: string): string {
-    const base = label
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 24) || 'CUSTOM';
+    const base =
+      label
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 24) || 'CUSTOM';
     return `CUSTOM_${base}_${Date.now().toString(36).slice(-4).toUpperCase()}`;
   }
 }

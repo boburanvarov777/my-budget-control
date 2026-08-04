@@ -25,10 +25,7 @@ export class ReportsService {
       this.prisma.credit.findMany({ where: { userId } }),
     ]);
 
-    const totalDebt = credits.reduce(
-      (s, c) => s + Number(c.remainingDebt),
-      0,
-    );
+    const totalDebt = credits.reduce((s, c) => s + Number(c.remainingDebt), 0);
 
     return {
       month,

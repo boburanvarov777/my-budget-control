@@ -52,16 +52,24 @@ export function validateTelegramInitData(
   }
 }
 
+/**
+ * Canonical phone format: digits only, always prefixed with "+".
+ *
+ * Telegram sends contact.phone_number sometimes as "998901234567" and
+ * sometimes as "+998 90 123 45 67". Storing the raw value meant the same
+ * number could sit in two rows and the "phone already taken" check would
+ * silently miss it, so everything is normalised through here before it
+ * touches the database.
+ */
 export function normalizePhone(phone: string): string {
-  return phone.replace(/[\s\-()]/g, '');
+  const digits = phone.replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
 }
 
 export function phonesMatch(a: string, b: string): boolean {
   const na = normalizePhone(a);
   const nb = normalizePhone(b);
-  if (na === nb) return true;
-  const stripPlus = (p: string) => p.replace(/^\+/, '');
-  return stripPlus(na) === stripPlus(nb);
+  return na !== '' && na === nb;
 }
 
 export function usernamesMatch(

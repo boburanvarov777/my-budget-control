@@ -4,7 +4,7 @@ COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
 ARG CACHEBUST=1
-RUN npx prisma generate && npm run build && ls -la dist/main.js
+RUN rm -f tsconfig.build.tsbuildinfo && npx prisma generate && npm run build && test -f dist/main.js
 
 FROM node:22-alpine AS frontend-build
 WORKDIR /app/frontend
@@ -17,7 +17,7 @@ FROM node:22-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apt-get update && apt-get install -y --no-install-recommends nginx openssl ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends nginx openssl ca-certificates postgresql-client cron \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-build /app/backend/dist ./backend/dist
@@ -29,8 +29,9 @@ COPY --from=frontend-build /app/frontend/dist/frontend/browser /usr/share/nginx/
 COPY nginx.conf /etc/nginx/sites-available/default
 RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default \
   && rm -f /etc/nginx/sites-enabled/default.bak 2>/dev/null; true
+COPY scripts/backup-db.sh /app/scripts/backup-db.sh
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh /app/scripts/backup-db.sh
 
 EXPOSE 8080
 CMD ["/docker-entrypoint.sh"]

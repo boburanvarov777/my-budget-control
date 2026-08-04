@@ -53,13 +53,15 @@ export class BudgetService {
         monthlyIncome: dto.monthlyIncome,
         mandatoryExpenses: dto.mandatoryExpenses,
         recommendedSavings: recommendations,
-        freeMoney: remaining - Object.values(recommendations).reduce((a, b) => a + b, 0),
+        freeMoney:
+          remaining - Object.values(recommendations).reduce((a, b) => a + b, 0),
       },
       update: {
         monthlyIncome: dto.monthlyIncome,
         mandatoryExpenses: dto.mandatoryExpenses,
         recommendedSavings: recommendations,
-        freeMoney: remaining - Object.values(recommendations).reduce((a, b) => a + b, 0),
+        freeMoney:
+          remaining - Object.values(recommendations).reduce((a, b) => a + b, 0),
       },
     });
 

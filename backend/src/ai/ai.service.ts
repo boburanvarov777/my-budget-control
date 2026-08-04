@@ -58,7 +58,9 @@ export class AiService {
     const foodTotal = Number(foodExpenses._sum.amount ?? 0);
     const totalDebt = credits.reduce((s, c) => s + Number(c.remainingDebt), 0);
     const installmentDebt = installments.reduce(
-      (s, i) => s + Number(i.monthlyPayment) * Math.max(0, i.totalMonths - i.paidMonths),
+      (s, i) =>
+        s +
+        Number(i.monthlyPayment) * Math.max(0, i.totalMonths - i.paidMonths),
       0,
     );
     const debt = totalDebt + installmentDebt;
@@ -79,14 +81,16 @@ export class AiService {
         );
       } else {
         tips.push(
-          "Daromad kiriting va byudjet rejasini tuzing — tejash uchun avval qancha qolishini bilish kerak.",
+          'Daromad kiriting va byudjet rejasini tuzing — tejash uchun avval qancha qolishini bilish kerak.',
         );
       }
     }
 
     if (this.mentions(q, ['qarz', 'kredit', 'qarzlar'])) {
       if (totalDebt > 0) {
-        tips.push(`Faol kredit qarzingiz: ${this.format(totalDebt)}. Yangi kredit olishdan oldin mavjudini kamaytiring.`);
+        tips.push(
+          `Faol kredit qarzingiz: ${this.format(totalDebt)}. Yangi kredit olishdan oldin mavjudini kamaytiring.`,
+        );
       }
       if (microLoans.length) {
         const microTotal = microLoans.reduce((s, m) => s + Number(m.amount), 0);
@@ -95,20 +99,29 @@ export class AiService {
         );
       }
       if (!totalDebt && !microLoans.length) {
-        tips.push('Faol kredit yoki mikroqarzingiz yo\'q — yaxshi holat. Shunday davom eting.');
+        tips.push(
+          "Faol kredit yoki mikroqarzingiz yo'q — yaxshi holat. Shunday davom eting.",
+        );
       }
     }
 
-    if (this.mentions(q, ['byudjet', 'reja', 'to\'g\'ri'])) {
+    if (this.mentions(q, ['byudjet', 'reja', "to'g'ri"])) {
       if (budgetPlan) {
-        const mandatory = budgetPlan.mandatoryExpenses as Array<{ amount: number }>;
-        const mandatoryTotal = mandatory.reduce((s, i) => s + Number(i.amount), 0);
+        const mandatory = budgetPlan.mandatoryExpenses as Array<{
+          amount: number;
+        }>;
+        const mandatoryTotal = mandatory.reduce(
+          (s, i) => s + Number(i.amount),
+          0,
+        );
         const planRemaining = Number(budgetPlan.monthlyIncome) - mandatoryTotal;
         tips.push(
           `Byudjetingiz: daromad ${this.format(Number(budgetPlan.monthlyIncome))}, majburiy ${this.format(mandatoryTotal)}, qoladi ${this.format(planRemaining)}.`,
         );
       } else {
-        tips.push('Byudjet bo\'limida oylik daromad va majburiy xarajatlarni kiriting — tavsiyalar avtomatik hisoblanadi.');
+        tips.push(
+          "Byudjet bo'limida oylik daromad va majburiy xarajatlarni kiriting — tavsiyalar avtomatik hisoblanadi.",
+        );
       }
     }
 
@@ -119,11 +132,17 @@ export class AiService {
       if (activeGoals.length) {
         const top = activeGoals[0];
         const left = Number(top.targetAmount) - Number(top.savedAmount);
-        tips.push(`"${top.name}" maqsadi uchun yana ${this.format(left)} kerak.`);
+        tips.push(
+          `"${top.name}" maqsadi uchun yana ${this.format(left)} kerak.`,
+        );
       } else if (goals.length) {
-        tips.push('Barcha maqsadlaringiz bajarilgan yoki yaqin — tabriklaymiz!');
+        tips.push(
+          'Barcha maqsadlaringiz bajarilgan yoki yaqin — tabriklaymiz!',
+        );
       } else {
-        tips.push('Maqsadlar bo\'limida mashina, uy yoki zaxira fond qo\'shing — progress kuzatiladi.');
+        tips.push(
+          "Maqsadlar bo'limida mashina, uy yoki zaxira fond qo'shing — progress kuzatiladi.",
+        );
       }
     }
 
@@ -136,8 +155,13 @@ export class AiService {
     const earlyPayoff = installments.find(
       (i) => i.paidMonths < i.totalMonths && i.paidMonths < 3,
     );
-    if (earlyPayoff && this.mentions(q, ['telefon', 'muddatli', 'to\'lov', 'tejash'])) {
-      const saveEstimate = Math.round(Number(earlyPayoff.monthlyPayment) * 2 * 0.15);
+    if (
+      earlyPayoff &&
+      this.mentions(q, ['telefon', 'muddatli', "to'lov", 'tejash'])
+    ) {
+      const saveEstimate = Math.round(
+        Number(earlyPayoff.monthlyPayment) * 2 * 0.15,
+      );
       tips.push(
         `"${earlyPayoff.name}" ni 2 oy oldin yopsangiz taxminan ${this.format(saveEstimate)} tejashingiz mumkin.`,
       );
@@ -146,7 +170,7 @@ export class AiService {
     const overdueLoans = microLoans.filter((m) => m.dueDate < now);
     if (overdueLoans.length) {
       tips.push(
-        `${overdueLoans.length} ta mikroqarz muddati o\'tgan — avval ularni yoping, jarima oshmasin.`,
+        `${overdueLoans.length} ta mikroqarz muddati o'tgan — avval ularni yoping, jarima oshmasin.`,
       );
     }
 
@@ -161,7 +185,7 @@ export class AiService {
         );
       } else {
         tips.push(
-          'Moliyaviy holatingiz barqaror. Jamg\'arma, byudjet va maqsadlar bo\'yicha muntazam to\'lov qiling.',
+          "Moliyaviy holatingiz barqaror. Jamg'arma, byudjet va maqsadlar bo'yicha muntazam to'lov qiling.",
         );
       }
     }

@@ -47,7 +47,8 @@ export class CreditsService {
     const existing = await this.ensureOwned(userId, id);
 
     const totalAmount = dto.totalAmount ?? Number(existing.totalAmount);
-    const monthlyPayment = dto.monthlyPayment ?? Number(existing.monthlyPayment);
+    const monthlyPayment =
+      dto.monthlyPayment ?? Number(existing.monthlyPayment);
     const months = dto.months ?? existing.months;
     const paidMonths = Math.min(
       months,
@@ -68,7 +69,9 @@ export class CreditsService {
       data: {
         ...(dto.name != null ? { name: dto.name } : {}),
         ...(dto.totalAmount != null ? { totalAmount: dto.totalAmount } : {}),
-        ...(dto.monthlyPayment != null ? { monthlyPayment: dto.monthlyPayment } : {}),
+        ...(dto.monthlyPayment != null
+          ? { monthlyPayment: dto.monthlyPayment }
+          : {}),
         ...(dto.months != null ? { months: dto.months } : {}),
         ...(dto.interestRate != null ? { interestRate: dto.interestRate } : {}),
         ...(dto.startDate != null ? { startDate: start } : {}),
@@ -92,7 +95,10 @@ export class CreditsService {
     paidMonths: number,
     startDate: Date,
   ) {
-    const remainingDebt = Math.max(0, totalAmount - paidMonths * monthlyPayment);
+    const remainingDebt = Math.max(
+      0,
+      totalAmount - paidMonths * monthlyPayment,
+    );
     const nextPaymentDate = new Date(startDate);
     if (paidMonths >= months || remainingDebt <= 0) {
       return {

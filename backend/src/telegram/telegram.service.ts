@@ -2,46 +2,103 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  deriveWebhookSecret,
+  isValidWebhookSecret,
+} from './webhook-secret.util';
+
+/** Text of the reply-keyboard button the user taps in the bot chat to register. */
+export const CONTACT_BUTTON_TEXT = '📱 Raqamni yuborish';
+
+interface TelegramApiResponse<T = unknown> {
+  ok?: boolean;
+  description?: string;
+  error_code?: number;
+  result?: T;
+}
 
 @Injectable()
 export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
+
+  /** Cached result of getMe so we don't hit the API on every request. */
+  private botUsernameCache: string | null = null;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
   ) {}
 
-  async sendMessage(chatId: string | number, text: string): Promise<boolean> {
-    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+  private get token(): string | undefined {
+    return this.config.get<string>('TELEGRAM_BOT_TOKEN');
+  }
+
+  /**
+   * Single entry point for the Bot API. Every caller gets a typed result and a
+   * logged failure instead of a silently swallowed promise.
+   */
+  private async call<T>(
+    method: string,
+    payload: Record<string, unknown>,
+  ): Promise<TelegramApiResponse<T>> {
+    const token = this.token;
     if (!token) {
-      this.logger.warn('TELEGRAM_BOT_TOKEN not set');
-      return false;
+      this.logger.warn(`TELEGRAM_BOT_TOKEN not set — skipping ${method}`);
+      return { ok: false, description: 'TELEGRAM_BOT_TOKEN not set' };
     }
 
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-        }),
-      });
-      const data = (await res.json()) as { ok?: boolean; description?: string };
+      const res = await fetch(
+        `https://api.telegram.org/bot${token}/${method}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = (await res.json()) as TelegramApiResponse<T>;
       if (!data.ok) {
         this.logger.error(
-          `Telegram sendMessage failed (chat=${chatId}): ${data.description ?? res.status}`,
+          `Telegram ${method} failed: ${data.description ?? res.status}`,
         );
-        return false;
       }
-      return true;
+      return data;
     } catch (err) {
-      this.logger.error(`Failed to send Telegram message (chat=${chatId})`, err);
-      return false;
+      this.logger.error(`Telegram ${method} request threw`, err);
+      return { ok: false, description: 'Network error' };
     }
+  }
+
+  /** Shared secret Telegram echoes back in X-Telegram-Bot-Api-Secret-Token. */
+  private get webhookSecret(): string | null {
+    return deriveWebhookSecret(this.token ?? '');
+  }
+
+  isValidWebhookSecret(received?: string): boolean {
+    return isValidWebhookSecret(this.token, received);
+  }
+
+  /** Bot username without the leading @, e.g. "myBudgetControl_bot". */
+  async getBotUsername(): Promise<string> {
+    const configured = this.config.get<string>('TELEGRAM_BOT_USERNAME');
+    if (configured) return configured.replace(/^@/, '');
+
+    if (this.botUsernameCache) return this.botUsernameCache;
+
+    const res = await this.call<{ username?: string }>('getMe', {});
+    const username = res.result?.username;
+    if (username) {
+      this.botUsernameCache = username;
+      return username;
+    }
+    return 'myBudgetControl_bot';
+  }
+
+  async sendMessage(chatId: string | number, text: string): Promise<boolean> {
+    // Deliberately no parse_mode: these messages carry user-supplied text
+    // (loan provider names, notes) and HTML parsing would reject a stray "<".
+    const res = await this.call('sendMessage', { chat_id: chatId, text });
+    return res.ok === true;
   }
 
   async sendMessageWithWebApp(
@@ -49,120 +106,93 @@ export class TelegramService {
     text: string,
     buttonText: string,
     webAppUrl: string,
-  ) {
-    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!token) return;
-
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: buttonText, web_app: { url: webAppUrl } }],
-            ],
-          },
-        }),
-      });
-      const data = (await res.json()) as { ok?: boolean; description?: string };
-      if (!data.ok) {
-        this.logger.error(`Telegram web_app button error: ${data.description}`);
-      }
-    } catch (err) {
-      this.logger.error('Failed to send web app button', err);
-    }
+  ): Promise<boolean> {
+    const res = await this.call('sendMessage', {
+      chat_id: chatId,
+      text,
+      reply_markup: {
+        inline_keyboard: [[{ text: buttonText, web_app: { url: webAppUrl } }]],
+      },
+    });
+    return res.ok === true;
   }
 
-  async sendContactRequest(chatId: string | number, text: string) {
-    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!token) return;
-
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          reply_markup: {
-            keyboard: [[{ text: '📱 Raqamni yuborish', request_contact: true }]],
-            resize_keyboard: true,
-            one_time_keyboard: true,
-          },
-        }),
-      });
-      const data = (await res.json()) as { ok?: boolean; description?: string };
-      if (!data.ok) {
-        this.logger.error(`Contact keyboard error: ${data.description}`);
-      }
-    } catch (err) {
-      this.logger.error('Failed to send contact keyboard', err);
-    }
+  /**
+   * Shows the native "share my contact" reply keyboard in the bot chat.
+   * Returns false when the bot cannot message the user (they never pressed
+   * /start, or they blocked the bot) so callers can tell them what to do.
+   */
+  async sendContactRequest(
+    chatId: string | number,
+    text: string,
+  ): Promise<boolean> {
+    const res = await this.call('sendMessage', {
+      chat_id: chatId,
+      text,
+      reply_markup: {
+        keyboard: [[{ text: CONTACT_BUTTON_TEXT, request_contact: true }]],
+        resize_keyboard: true,
+        one_time_keyboard: false,
+        input_field_placeholder: "Raqamni qo'lda yozmang",
+      },
+    });
+    return res.ok === true;
   }
 
-  async removeKeyboard(chatId: string | number) {
-    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!token) return;
+  /**
+   * Hides the contact keyboard. Telegram has no dedicated method for this, so
+   * we send a throwaway message carrying remove_keyboard and delete it again —
+   * otherwise the chat is left with a stray blank message.
+   */
+  async removeKeyboard(chatId: string | number): Promise<void> {
+    const res = await this.call<{ message_id: number }>('sendMessage', {
+      chat_id: chatId,
+      text: '⌛',
+      reply_markup: { remove_keyboard: true },
+    });
 
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const messageId = res.result?.message_id;
+    if (messageId != null) {
+      await this.call('deleteMessage', {
         chat_id: chatId,
-        text: ' ',
-        reply_markup: { remove_keyboard: true },
-      }),
-    }).catch(() => undefined);
+        message_id: messageId,
+      });
+    }
   }
 
-  async setupBot(appUrl: string) {
-    const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!token) return;
+  async setupBot(appUrl: string): Promise<void> {
+    if (!this.token) return;
 
     const base = appUrl.replace(/\/$/, '');
     const webAppUrl = `${base}/auth`;
     const webhookUrl = `${base}/api/telegram/webhook`;
 
-    try {
-      await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          menu_button: {
-            type: 'web_app',
-            text: 'Ilovani oching',
-            web_app: { url: webAppUrl },
-          },
-        }),
-      });
+    await this.call('setChatMenuButton', {
+      menu_button: {
+        type: 'web_app',
+        text: 'Ilovani oching',
+        web_app: { url: webAppUrl },
+      },
+    });
 
-      await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: webhookUrl,
-          allowed_updates: ['message'],
-          drop_pending_updates: true,
-        }),
-      });
+    await this.call('setWebhook', {
+      url: webhookUrl,
+      allowed_updates: ['message'],
+      // Old pending updates are dropped so a restart never replays a stale
+      // contact message and re-registers somebody.
+      drop_pending_updates: true,
+      // Telegram sends this back on every call so we can reject forged updates.
+      secret_token: this.webhookSecret,
+    });
 
-      await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          commands: [{ command: 'start', description: "Ro'yxatdan o'tish" }],
-        }),
-      });
+    await this.call('setMyCommands', {
+      commands: [{ command: 'start', description: "Ro'yxatdan o'tish" }],
+    });
 
-      this.logger.log(`Bot configured: webapp=${webAppUrl} webhook=${webhookUrl}`);
-    } catch (err) {
-      this.logger.error('Bot setup failed', err);
-    }
+    const username = await this.getBotUsername();
+    this.logger.log(
+      `Bot @${username} configured: webapp=${webAppUrl} webhook=${webhookUrl}`,
+    );
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
@@ -188,7 +218,11 @@ export class TelegramService {
         (loan.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       );
       const urgency =
-        daysLeft <= 0 ? 'BUGUN' : daysLeft === 1 ? 'ERTAGA' : `${daysLeft} kun qoldi`;
+        daysLeft <= 0
+          ? 'BUGUN'
+          : daysLeft === 1
+            ? 'ERTAGA'
+            : `${daysLeft} kun qoldi`;
 
       const message = `⚠️ ${urgency}: ${loan.provider} qarzi tugaydi\n${Number(loan.amount).toLocaleString('uz-UZ')} so'm\nTo'lashni unutmang.`;
 

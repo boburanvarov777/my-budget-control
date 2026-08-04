@@ -22,7 +22,11 @@ export class InstallmentsService {
       dto.totalMonths,
       Math.max(0, dto.paidMonths ?? 0),
     );
-    const nextPaymentDate = this.nextPaymentDate(start, paidMonths, dto.totalMonths);
+    const nextPaymentDate = this.nextPaymentDate(
+      start,
+      paidMonths,
+      dto.totalMonths,
+    );
 
     return this.prisma.installment.create({
       data: {
@@ -49,7 +53,11 @@ export class InstallmentsService {
       Math.max(0, dto.paidMonths ?? existing.paidMonths),
     );
     const start = dto.startDate ? new Date(dto.startDate) : existing.startDate;
-    const nextPaymentDate = this.nextPaymentDate(start, paidMonths, totalMonths);
+    const nextPaymentDate = this.nextPaymentDate(
+      start,
+      paidMonths,
+      totalMonths,
+    );
 
     return this.prisma.installment.update({
       where: { id },
@@ -58,7 +66,9 @@ export class InstallmentsService {
         ...(dto.currency != null ? { currency: dto.currency } : {}),
         ...(dto.totalAmount != null ? { totalAmount: dto.totalAmount } : {}),
         ...(dto.downPayment != null ? { downPayment: dto.downPayment } : {}),
-        ...(dto.monthlyPayment != null ? { monthlyPayment: dto.monthlyPayment } : {}),
+        ...(dto.monthlyPayment != null
+          ? { monthlyPayment: dto.monthlyPayment }
+          : {}),
         ...(dto.totalMonths != null ? { totalMonths: dto.totalMonths } : {}),
         ...(dto.startDate != null ? { startDate: start } : {}),
         paidMonths,
@@ -72,7 +82,11 @@ export class InstallmentsService {
     return this.prisma.installment.delete({ where: { id } });
   }
 
-  private nextPaymentDate(start: Date, paidMonths: number, totalMonths: number) {
+  private nextPaymentDate(
+    start: Date,
+    paidMonths: number,
+    totalMonths: number,
+  ) {
     if (paidMonths >= totalMonths) return null;
     const next = new Date(start);
     next.setMonth(next.getMonth() + paidMonths + 1);
