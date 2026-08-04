@@ -20,6 +20,11 @@ export class CreateCreditDto {
   @IsNumber()
   @Min(0)
   @IsOptional()
+  downPayment?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
   interestRate?: number;
 
   @IsInt()

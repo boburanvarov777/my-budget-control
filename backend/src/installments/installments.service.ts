@@ -26,6 +26,7 @@ export class InstallmentsService {
         userId,
         name: dto.name,
         totalAmount: dto.totalAmount,
+        downPayment: dto.downPayment ?? 0,
         monthlyPayment: dto.monthlyPayment,
         totalMonths: dto.totalMonths,
         startDate: start,

@@ -23,6 +23,7 @@ export class CreditsService {
         userId,
         name: dto.name,
         totalAmount: dto.totalAmount,
+        downPayment: dto.downPayment ?? 0,
         interestRate: dto.interestRate ?? 0,
         months: dto.months,
         startDate: start,

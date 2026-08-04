@@ -83,6 +83,9 @@ interface CategoryItem {
 
       @if (showForm()) {
         <form class="premium-card form-card" (ngSubmit)="submit()" novalidate>
+          @if (editingId()) {
+            <h2 class="form-title">Tahrirlash</h2>
+          }
           <div class="premium-field">
             <label class="premium-label">Summa (so'm)</label>
             <app-currency-input
@@ -150,7 +153,7 @@ interface CategoryItem {
               Bekor
             </button>
             <button type="submit" class="premium-btn premium-btn-primary premium-btn-block" [disabled]="saving()">
-              {{ saving() ? 'Saqlanmoqda...' : 'Saqlash' }}
+              {{ saving() ? 'Saqlanmoqda...' : (editingId() ? 'Yangilash' : 'Saqlash') }}
             </button>
           </div>
         </form>
@@ -171,9 +174,14 @@ interface CategoryItem {
                   </p>
                 </div>
               </div>
-              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); removeIncome(item)">
-                <app-icon name="trash-2" [size]="16" />
-              </button>
+              <div class="row-actions">
+                <button type="button" class="icon-btn edit-btn" (click)="$event.stopPropagation(); startEdit(item, 'income')">
+                  <app-icon name="pencil" [size]="16" />
+                </button>
+                <button type="button" class="icon-btn" (click)="$event.stopPropagation(); removeIncome(item)">
+                  <app-icon name="trash-2" [size]="16" />
+                </button>
+              </div>
             </div>
           } @empty {
             <div class="premium-card premium-muted premium-small">Daromadlar yo'q</div>
@@ -192,9 +200,14 @@ interface CategoryItem {
                   </p>
                 </div>
               </div>
-              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); removeExpense(item)">
-                <app-icon name="trash-2" [size]="16" />
-              </button>
+              <div class="row-actions">
+                <button type="button" class="icon-btn edit-btn" (click)="$event.stopPropagation(); startEdit(item, 'expense')">
+                  <app-icon name="pencil" [size]="16" />
+                </button>
+                <button type="button" class="icon-btn" (click)="$event.stopPropagation(); removeExpense(item)">
+                  <app-icon name="trash-2" [size]="16" />
+                </button>
+              </div>
             </div>
           } @empty {
             <div class="premium-card premium-muted premium-small">Xarajatlar yo'q</div>
@@ -226,6 +239,9 @@ interface CategoryItem {
               <span>{{ item.note?.trim() || '—' }}</span>
             </div>
           </div>
+          <button type="button" class="premium-btn premium-btn-primary premium-btn-block" (click)="editFromDetail()">
+            Tahrirlash
+          </button>
           <button type="button" class="premium-btn premium-btn-secondary premium-btn-block" (click)="closeDetail()">
             Yopish
           </button>
@@ -238,6 +254,11 @@ interface CategoryItem {
   styles: [
     `
       .form-card > * + * { margin-top: 16px; }
+      .form-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
       .space-y-3 > * + * { margin-top: 12px; }
       .flex { display: flex; }
       .items-center { align-items: center; }
@@ -276,6 +297,15 @@ interface CategoryItem {
       }
 
       .icon-btn:hover { color: var(--color-danger); }
+
+      .row-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .edit-btn:hover { color: var(--color-gold); }
 
       .clickable { cursor: pointer; }
 
@@ -338,6 +368,7 @@ export class TransactionsComponent implements OnInit {
   errors = signal<Record<string, string>>({});
   detailItem = signal<IncomeItem | ExpenseItem | null>(null);
   detailType = signal<Tab>('expense');
+  editingId = signal<string | null>(null);
 
   incomes = signal<IncomeItem[]>([]);
   expenses = signal<ExpenseItem[]>([]);
@@ -365,6 +396,7 @@ export class TransactionsComponent implements OnInit {
     this.draftService.save({
       tab: this.tab(),
       showForm: this.showForm(),
+      editingId: this.editingId(),
       form: {
         amount: this.form.amount,
         category: this.form.category,
@@ -386,12 +418,38 @@ export class TransactionsComponent implements OnInit {
     this.detailItem.set(null);
   }
 
+  editFromDetail(): void {
+    const item = this.detailItem();
+    if (!item) return;
+    this.startEdit(item, this.detailType());
+    this.closeDetail();
+  }
+
+  startEdit(item: IncomeItem | ExpenseItem, type: Tab): void {
+    this.tab.set(type);
+    this.editingId.set(item.id);
+    this.errors.set({});
+    this.submitError.set('');
+    this.form = {
+      amount: coerceAmount(item.amount),
+      category: item.category,
+      date: this.toDateInput(item.date),
+      note: item.note ?? '',
+    };
+    this.showForm.set(true);
+  }
+
+  private toDateInput(value: string): string {
+    return value?.slice(0, 10) ?? '';
+  }
+
   private restoreDraft(): void {
     const draft = this.draftService.consume();
     if (!draft) return;
     this.tab.set(draft.tab);
     this.form = { ...draft.form };
     this.showForm.set(draft.showForm);
+    this.editingId.set(draft.editingId ?? null);
     this.loadCategories();
   }
 
@@ -401,6 +459,7 @@ export class TransactionsComponent implements OnInit {
   }
 
   openForm(): void {
+    this.editingId.set(null);
     this.errors.set({});
     this.submitError.set('');
     this.form = {
@@ -414,6 +473,7 @@ export class TransactionsComponent implements OnInit {
 
   closeForm(): void {
     this.showForm.set(false);
+    this.editingId.set(null);
     this.errors.set({});
     this.submitError.set('');
   }
@@ -448,8 +508,14 @@ export class TransactionsComponent implements OnInit {
       note: this.form.note?.trim() || undefined,
     };
 
-    const req =
-      this.tab() === 'income'
+    const editingId = this.editingId();
+    const isIncome = this.tab() === 'income';
+
+    const req = editingId
+      ? isIncome
+        ? this.api.patch(`/incomes/${editingId}`, payload)
+        : this.api.patch(`/expenses/${editingId}`, payload)
+      : isIncome
         ? this.api.post('/incomes', payload)
         : this.api.post('/expenses', payload);
 
@@ -457,11 +523,15 @@ export class TransactionsComponent implements OnInit {
       next: () => {
         this.saving.set(false);
         this.closeForm();
-        this.tab() === 'income' ? this.loadIncomes() : this.loadExpenses();
+        isIncome ? this.loadIncomes() : this.loadExpenses();
         this.toast.success(
-          this.tab() === 'income'
-            ? "Daromad muvaffaqiyatli qo'shildi"
-            : "Xarajat muvaffaqiyatli qo'shildi",
+          editingId
+            ? isIncome
+              ? 'Daromad muvaffaqiyatli yangilandi'
+              : 'Xarajat muvaffaqiyatli yangilandi'
+            : isIncome
+              ? "Daromad muvaffaqiyatli qo'shildi"
+              : "Xarajat muvaffaqiyatli qo'shildi",
         );
       },
       error: (e: HttpErrorResponse) => {

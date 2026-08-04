@@ -12,6 +12,7 @@ import {
   TrendingDown,
   PiggyBank,
   ChevronRight,
+  ChevronLeft,
   Trash2,
   UtensilsCrossed,
   Car,
@@ -37,6 +38,7 @@ import {
   Tags,
   CircleCheck,
   CircleAlert,
+  Pencil,
   LucideIconData,
 } from 'lucide-angular';
 
@@ -53,6 +55,7 @@ const ICONS: Record<string, LucideIconData> = {
   'trending-down': TrendingDown,
   'piggy-bank': PiggyBank,
   'chevron-right': ChevronRight,
+  'chevron-left': ChevronLeft,
   'trash-2': Trash2,
   'utensils-crossed': UtensilsCrossed,
   car: Car,
@@ -78,6 +81,7 @@ const ICONS: Record<string, LucideIconData> = {
   tags: Tags,
   'circle-check': CircleCheck,
   'circle-alert': CircleAlert,
+  pencil: Pencil,
 };
 
 @Component({

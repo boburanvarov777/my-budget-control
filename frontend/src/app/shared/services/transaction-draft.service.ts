@@ -5,6 +5,7 @@ export type TransactionTab = 'income' | 'expense';
 export interface TransactionFormDraft {
   tab: TransactionTab;
   showForm: boolean;
+  editingId?: string | null;
   form: {
     amount: number | null;
     category: string;

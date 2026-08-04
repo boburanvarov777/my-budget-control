@@ -17,6 +17,11 @@ export class CreateInstallmentDto {
 
   @IsNumber()
   @Min(0)
+  @IsOptional()
+  downPayment?: number;
+
+  @IsNumber()
+  @Min(0)
   monthlyPayment!: number;
 
   @IsInt()

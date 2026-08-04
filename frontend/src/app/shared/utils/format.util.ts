@@ -51,6 +51,76 @@ export function parseAmount(value: string | number | null | undefined): number |
   return Number(digits);
 }
 
+/** Faqat raqam va bitta nuqta (tiyin uchun) */
+export function sanitizeDecimalInput(raw: string, maxDecimals = 2): string {
+  let s = raw.replace(/\s/g, '').replace(',', '.');
+  s = s.replace(/[^\d.]/g, '');
+  const dotIndex = s.indexOf('.');
+  if (dotIndex !== -1) {
+    const intPart = s.slice(0, dotIndex);
+    let decPart = s.slice(dotIndex + 1).replace(/\./g, '');
+    if (decPart.length > maxDecimals) decPart = decPart.slice(0, maxDecimals);
+    s = decPart.length ? `${intPart}.${decPart}` : `${intPart}.`;
+  }
+  return s;
+}
+
+export function parseDecimal(value: string | number | null | undefined, maxDecimals = 2): number | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const s = sanitizeDecimalInput(String(value), maxDecimals);
+  if (!s || s === '.') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function formatDecimalDisplay(value: number | string, maxDecimals = 2, formatThousands = true): string {
+  const n = typeof value === 'number' ? value : parseDecimal(String(value), maxDecimals);
+  if (n == null) return '';
+
+  const fixed = n.toFixed(maxDecimals);
+  const trimmed = fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  const [intPart, decPart] = trimmed.split('.');
+
+  if (!formatThousands) {
+    return decPart != null ? `${intPart}.${decPart}` : intPart;
+  }
+
+  const formattedInt = Number(intPart).toLocaleString('uz-UZ').replace(/\u00a0/g, ' ');
+  return decPart != null ? `${formattedInt}.${decPart}` : formattedInt;
+}
+
+/** Annuitet bo'yicha yillik foiz stavkasini hisoblash (%) */
+export function calcMonthlyPayment(principal: number, monthlyRate: number, months: number): number {
+  if (months <= 0) return 0;
+  if (monthlyRate <= 0) return principal / months;
+  const factor = Math.pow(1 + monthlyRate, months);
+  return (principal * monthlyRate * factor) / (factor - 1);
+}
+
+export function calcAnnualInterestRate(
+  principal: number,
+  monthlyPayment: number,
+  months: number,
+): number {
+  if (principal <= 0 || monthlyPayment <= 0 || months <= 0) return 0;
+
+  const zeroRatePayment = principal / months;
+  if (monthlyPayment <= zeroRatePayment + 0.001) return 0;
+
+  let lo = 0;
+  let hi = 0.5;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    const payment = calcMonthlyPayment(principal, mid, months);
+    if (payment > monthlyPayment) hi = mid;
+    else lo = mid;
+  }
+
+  const monthlyRate = (lo + hi) / 2;
+  return Math.round(monthlyRate * 12 * 10000) / 100;
+}
+
 export function formatAmountInput(value: string): string {
   const parsed = parseAmount(value);
   if (parsed == null) return '';
@@ -70,4 +140,27 @@ export function daysUntil(date: string | Date): number {
 export function currentMonthYear() {
   const now = new Date();
   return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
+export function creditPaidMonths(item: {
+  totalAmount: unknown;
+  remainingDebt: unknown;
+  monthlyPayment: unknown;
+  months: number;
+}): number {
+  const total = coerceAmount(item.totalAmount);
+  const remaining = coerceAmount(item.remainingDebt);
+  const monthly = coerceAmount(item.monthlyPayment);
+  if (monthly <= 0 || item.months <= 0) return 0;
+  const paid = Math.floor((total - remaining) / monthly);
+  return Math.min(item.months, Math.max(0, paid));
+}
+
+export function creditRemainingMonths(item: {
+  totalAmount: unknown;
+  remainingDebt: unknown;
+  monthlyPayment: unknown;
+  months: number;
+}): number {
+  return Math.max(0, item.months - creditPaidMonths(item));
 }
